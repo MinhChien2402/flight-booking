@@ -87,10 +87,10 @@ export default function DataTablePage({
                     return (
                       <td key={index} className="px-4 py-2">
                         <button className="bg-green-500 text-white px-2 py-1 rounded mr-2">
-                          ✏️
+                          Edit
                         </button>
                         <button className="bg-red-500 text-white px-2 py-1 rounded">
-                          🗑️
+                          Delete
                         </button>
                       </td>
                     );

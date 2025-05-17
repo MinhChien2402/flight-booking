@@ -1,136 +1,122 @@
 // Libs
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
+import { useSelector } from "react-redux";
 // Components, Layouts, Pages
 // Others
 // Styles, images, icons
 
-// Example list of cities - in a real app, you might fetch these from an API
-const cities = [
-  "New York",
-  "Los Angeles",
-  "Chicago",
-  "Houston",
-  "Phoenix",
-  "Philadelphia",
-  "San Antonio",
-  "San Diego",
-  "Dallas",
-  "San Jose",
-  "Austin",
-  "Jacksonville",
-  "Fort Worth",
-  "Columbus",
-  "San Francisco",
-  "Charlotte",
-  "Indianapolis",
-  "Seattle",
-  "Denver",
-  "Washington DC",
-  "Boston",
-  "El Paso",
-  "Detroit",
-  "Nashville",
-  "Portland",
-  "London",
-  "Paris",
-  "Tokyo",
-  "Dubai",
-  "Singapore",
-  "Hong Kong",
-  "Bangkok",
-  "Seoul",
-  "Rome",
-  "Amsterdam",
-  "Sydney",
-  "Mumbai",
-  "Toronto",
-  "Berlin",
-  "Barcelona",
-];
+const CityAutocomplete = ({
+  value: propValue,
+  onChange,
+  placeholder,
+  label,
+}) => {
+  const {
+    data = [],
+    loading,
+    error,
+  } = useSelector(
+    (state) => state.airports || { data: [], loading: false, error: null }
+  );
+  const [filteredAirports, setFilteredAirports] = useState([]);
+  const [inputValue, setInputValue] = useState("");
+  const [showDropdown, setShowDropdown] = useState(false);
 
-const CityAutocomplete = ({ value, onChange, placeholder, label }) => {
-  //#region Declare Hook
-  const wrapperRef = useRef(null);
-  //#endregion Declare Hook
-
-  //#region Selector
-  //#endregion Selector
-
-  //#region Declare State
-  const [inputValue, setInputValue] = useState(value || "");
-  const [suggestions, setSuggestions] = useState([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  //#endregion Declare State
-
-  //#region Implement Hook
+  // Đồng bộ giá trị ban đầu từ props (defaultData)
   useEffect(() => {
-    setInputValue(value || "");
-  }, [value]);
-
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
-        setShowSuggestions(false);
+    console.log(
+      "CityAutocomplete useEffect - propValue:",
+      propValue,
+      "data:",
+      data
+    );
+    if (propValue && data.length > 0 && !inputValue) {
+      // Chỉ đồng bộ khi inputValue trống
+      const parsedValue = parseInt(propValue);
+      if (!isNaN(parsedValue)) {
+        const selectedAirport = data.find(
+          (airport) => parseInt(airport.id) === parsedValue
+        );
+        if (selectedAirport) {
+          const newInputValue = `${selectedAirport.name || "Unknown"} (${
+            selectedAirport.code || "N/A"
+          })`;
+          console.log("Setting inputValue from useEffect:", newInputValue);
+          setInputValue(newInputValue);
+        } else {
+          console.warn(
+            "Airport not found for value:",
+            propValue,
+            "in data:",
+            data
+          );
+          setInputValue("");
+        }
+      } else {
+        setInputValue("");
       }
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [wrapperRef]);
-  //#endregion Implement Hook
+  }, [propValue, data]);
 
-  //#region Handle Function
   const handleInputChange = (e) => {
-    const value = e.target.value;
-    setInputValue(value);
-    onChange(value);
+    const query = e.target.value;
+    setInputValue(query);
+    setShowDropdown(true);
 
-    if (value.trim() === "") {
-      setSuggestions([]);
-      return;
+    if (query && data.length > 0) {
+      const filtered = data.filter((airport) =>
+        (airport.name || "").toLowerCase().includes(query.toLowerCase())
+      );
+      setFilteredAirports(filtered);
+    } else {
+      setFilteredAirports([]);
+      if (!query) setShowDropdown(false);
     }
-
-    const filteredSuggestions = cities
-      .filter((city) => city.toLowerCase().includes(value.toLowerCase()))
-      .slice(0, 5);
-
-    setSuggestions(filteredSuggestions);
-    setShowSuggestions(true);
   };
 
-  const handleSuggestionClick = (suggestion) => {
-    setInputValue(suggestion);
-    onChange(suggestion);
-    setSuggestions([]);
-    setShowSuggestions(false);
+  const handleSelectAirport = (airport) => {
+    const displayValue = `${airport.name || "Unknown"} (${
+      airport.code || "N/A"
+    })`;
+    const airportId = airport.id.toString();
+    console.log("Selected airport:", { displayValue, airportId });
+    setInputValue(displayValue); // Giữ giá trị hiển thị
+    onChange(airportId); // Truyền id lên parent
+    setShowDropdown(false);
   };
-  //#endregion Handle Function
+
+  if (error) {
+    return <p className="text-red-500">Error loading airports: {error}</p>;
+  }
 
   return (
-    <div className="relative" ref={wrapperRef}>
-      {label && <label className="block text-gray-700 mb-2">{label}</label>}
+    <div className="relative">
+      <label className="block text-gray-700 mb-2">{label}</label>
       <input
         type="text"
         value={inputValue}
         onChange={handleInputChange}
-        onFocus={() => inputValue.trim() !== "" && setShowSuggestions(true)}
-        placeholder={placeholder || "Select City"}
+        onFocus={() => setShowDropdown(true)}
+        placeholder={loading ? "Loading airports..." : placeholder}
         className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
-
-      {showSuggestions && suggestions.length > 0 && (
-        <ul className="absolute z-10 w-full bg-white mt-1 border border-gray-300 rounded shadow-lg max-h-60 overflow-auto">
-          {suggestions.map((suggestion, index) => (
+      {showDropdown && filteredAirports.length > 0 && (
+        <ul className="absolute z-50 w-full bg-white border border-gray-300 rounded mt-1 max-h-60 overflow-y-auto">
+          {filteredAirports.map((airport) => (
             <li
-              key={index}
-              onClick={() => handleSuggestionClick(suggestion)}
-              className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+              key={airport.id}
+              onClick={() => handleSelectAirport(airport)}
+              className="p-2 hover:bg-gray-100 cursor-pointer"
             >
-              {suggestion}
+              {airport.name || "Unknown"} ({airport.code || "N/A"})
             </li>
           ))}
         </ul>
+      )}
+      {showDropdown && filteredAirports.length === 0 && inputValue && (
+        <p className="absolute z-50 w-full bg-white border border-gray-300 rounded mt-1 p-2 text-gray-500">
+          {data.length === 0 ? "Loading airports..." : "No airports found."}
+        </p>
       )}
     </div>
   );

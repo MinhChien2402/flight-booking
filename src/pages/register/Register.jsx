@@ -1,9 +1,11 @@
 // Libs
-import React, { useState } from "react";
+import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast, ToastContainer } from "react-toastify";
+import { useDispatch, useSelector } from "react-redux";
 // Components, Layouts, Pages
 // Others
+import { registerUser } from "../../thunk/authThunk";
 // Styles, images, icons
 import airplaneImg from "../../assets/airplane-wallpaper.jpg";
 import "react-toastify/dist/ReactToastify.css";
@@ -11,22 +13,21 @@ import "react-toastify/dist/ReactToastify.css";
 const RegisterPage = () => {
   //#region Declare Hook
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   //#endregion Declare Hook
 
   //#region Selector
+  const { loading, error } = useSelector((state) => state.auth);
   //#endregion Selector
 
   //#region Declare State
-  const [loading, setLoading] = useState(false);
   //#endregion Declare State
 
   //#region Implement Hook
   //#endregion Implement Hook
-
   //#region Handle Function
-  const handleRegister = (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
-    setLoading(true);
 
     const fullName = e.target.fullName.value;
     const email = e.target.email.value;
@@ -36,23 +37,17 @@ const RegisterPage = () => {
       fullName,
       email,
       password,
-      role: "customer",
+      role: "customer", // Đảm bảo chỉ tạo tài khoản customer
     };
 
-    const users = JSON.parse(localStorage.getItem("users")) || [];
-
-    const existingUser = users.find((u) => u.email === email);
-    if (existingUser) {
-      toast.error("User already exists.");
-      setLoading(false);
-    } else {
-      users.push(newUser);
-      localStorage.setItem("users", JSON.stringify(users));
-      toast.success("Registered successfully!");
+    try {
+      const result = await dispatch(registerUser(newUser)).unwrap();
+      toast.success(result.message || "Registered successfully!");
       setTimeout(() => navigate("/login"), 1000);
+    } catch (err) {
+      toast.error(error || "Registration failed.");
     }
   };
-
   //#endregion Handle Function
 
   return (

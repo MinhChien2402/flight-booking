@@ -1,27 +1,17 @@
 // Libs
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useCallback, useState } from "react";
 // Components, Layouts, Pages
 // Others
 // Styles, images, icons
 
-const BookedTicketsTable = ({ tickets }) => {
+const BookedTicketsTable = ({ tickets, onAirlineClick }) => {
   //#region Declare Hook
   const ITEMS_PER_PAGE = 3;
-  const navigate = useNavigate();
   //#endregion Declare Hook
-
-  //#region Selector
-  //#endregion Selector
 
   //#region Declare State
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedTicket, setSelectedTicket] = useState(null);
-
   //#endregion Declare State
-
-  //#region Implement Hook
-  //#endregion Implement Hook
 
   //#region Handle Function
   const totalPages = Math.ceil(tickets.length / ITEMS_PER_PAGE);
@@ -35,6 +25,29 @@ const BookedTicketsTable = ({ tickets }) => {
   const handleNext = () => {
     if (currentPage < totalPages) setCurrentPage((prev) => prev + 1);
   };
+
+  const debouncedOnAirlineClick = useCallback(
+    debounce((bookingId) => {
+      onAirlineClick(bookingId);
+    }, 500), // Chờ 500ms giữa các lần gọi
+    [onAirlineClick]
+  );
+
+  function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  }
+
+  if (!tickets || tickets.length === 0) {
+    return null;
+  }
   //#endregion Handle Function
 
   return (
@@ -53,19 +66,19 @@ const BookedTicketsTable = ({ tickets }) => {
         </thead>
         <tbody>
           {currentTickets.map((ticket, index) => (
-            <tr key={index} className="border-b hover:bg-gray-50">
+            <tr key={ticket.BookingId} className="border-b hover:bg-gray-50">
               <td
                 className="px-4 py-3 text-blue-600 hover:underline cursor-pointer"
-                onClick={() => navigate(`/booking/${ticket.id}`)}
+                onClick={() => debouncedOnAirlineClick(ticket.BookingId)}
               >
-                {ticket.airline}
+                {ticket.Airline}
               </td>
-              <td className="px-4 py-3">{ticket.from}</td>
-              <td className="px-4 py-3">{ticket.to}</td>
-              <td className="px-4 py-3">{ticket.departure}</td>
-              <td className="px-4 py-3">{ticket.arrival}</td>
-              <td className="px-4 py-3">{ticket.duration}</td>
-              <td className="px-4 py-3">{ticket.bookedOn}</td>
+              <td className="px-4 py-3">{ticket.From}</td>
+              <td className="px-4 py-3">{ticket.To}</td>
+              <td className="px-4 py-3">{ticket.Departure}</td>
+              <td className="px-4 py-3">{ticket.Arrival}</td>
+              <td className="px-4 py-3">{ticket.Duration}</td>
+              <td className="px-4 py-3">{ticket.BookedOn}</td>
             </tr>
           ))}
         </tbody>

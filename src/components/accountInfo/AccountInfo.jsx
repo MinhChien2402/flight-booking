@@ -1,28 +1,32 @@
 // Libs
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 // Components, Layouts, Pages
 // Others
+import { getUserProfile, updateUserProfile } from "../../thunk/profileThunk";
 // Styles, images, icons
 
 const AccountInfo = () => {
   //#region Declare Hook
+  const dispatch = useDispatch();
   //#endregion Declare Hook
 
   //#region Selector
+  const { userInfo, status, error } = useSelector((state) => state.user);
   //#endregion Selector
-
   //#region Declare State
   const [isEditing, setIsEditing] = useState(false);
-  const [userInfo, setUserInfo] = useState({
-    fullName: "John Doe",
-    email: "john@example.com",
-    phoneNumber: "123-456-7890",
-    dateOfBirth: "1990-01-01",
-  });
   const [editedInfo, setEditedInfo] = useState({ ...userInfo });
   //#endregion Declare State
 
   //#region Implement Hook
+  useEffect(() => {
+    dispatch(getUserProfile());
+  }, [dispatch]);
+
+  useEffect(() => {
+    setEditedInfo({ ...userInfo });
+  }, [userInfo]);
   //#endregion Implement Hook
 
   //#region Handle Function
@@ -33,9 +37,14 @@ const AccountInfo = () => {
     setEditedInfo({ ...userInfo });
   };
 
-  const handleSave = () => {
-    setUserInfo({ ...editedInfo });
-    setIsEditing(false);
+  const handleSave = async () => {
+    try {
+      await dispatch(updateUserProfile(editedInfo)).unwrap();
+      await dispatch(getUserProfile()).unwrap();
+      setIsEditing(false);
+    } catch (error) {
+      console.error("Failed to update profile:", error);
+    }
   };
 
   const handleChange = (e) => {
@@ -45,6 +54,9 @@ const AccountInfo = () => {
       [name]: value,
     }));
   };
+
+  if (status === "loading") return <div>Loading...</div>;
+  if (status === "failed") return <div>Error: {error}</div>;
   //#endregion Handle Function
 
   return (
@@ -73,12 +85,12 @@ const AccountInfo = () => {
                   <input
                     type={type}
                     name={name}
-                    value={editedInfo[name]}
+                    value={editedInfo[name] || ""}
                     onChange={handleChange}
                     className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-purple-400 focus:outline-none"
                   />
                 ) : (
-                  <div>{userInfo[name]}</div>
+                  <div>{userInfo[name] || ""}</div>
                 )}
               </div>
             </div>

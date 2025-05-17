@@ -1,70 +1,50 @@
 // Libs
-import React, { useEffect } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
 import { toast, ToastContainer } from "react-toastify";
+import { useDispatch, useSelector } from "react-redux";
 // Components, Layouts, Pages
 // Others
+import { loginUser } from "../../thunk/authThunk";
 // Styles, images, icons
-import "react-toastify/dist/ReactToastify.css";
 import airplaneImg from "../../assets/airplane-wallpaper.jpg";
+import "react-toastify/dist/ReactToastify.css";
 
 const LoginPage = () => {
   //#region Declare Hook
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   //#endregion Declare Hook
 
   //#region Selector
+  const { loading, error } = useSelector((state) => state.auth);
   //#endregion Selector
 
   //#region Declare State
   //#endregion Declare State
 
   //#region Implement Hook
-  useEffect(() => {
-    const users = JSON.parse(localStorage.getItem("users")) || [];
-
-    const isAdminExists = users.some(
-      (user) => user.email === "admin@example.com"
-    );
-
-    if (!isAdminExists) {
-      const defaultAdmin = {
-        fullName: "Admin",
-        email: "admin@example.com",
-        password: "admin123",
-        role: "admin",
-      };
-      users.push(defaultAdmin);
-      localStorage.setItem("users", JSON.stringify(users));
-    }
-  }, []);
   //#endregion Implement Hook
-
   //#region Handle Function
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
 
     const email = e.target.email.value;
     const password = e.target.password.value;
 
-    const users = JSON.parse(localStorage.getItem("users")) || [];
+    const userData = {
+      email,
+      password,
+    };
 
-    const foundUser = users.find(
-      (u) => u.email === email && u.password === password
-    );
-
-    if (foundUser) {
-      toast.success("Login successful!");
-      localStorage.setItem("isLoggedIn", "true");
-      localStorage.setItem("role", foundUser.role);
-      localStorage.setItem("currentUser", JSON.stringify(foundUser));
-
+    try {
+      const result = await dispatch(loginUser(userData)).unwrap();
+      toast.success(result.message || "Login successful!");
       setTimeout(() => navigate("/"), 1000);
-    } else {
-      toast.error("Invalid email or password.");
+    } catch (err) {
+      toast.error(error || "Invalid email or password.");
     }
   };
-
   //#endregion Handle Function
 
   return (
@@ -106,8 +86,9 @@ const LoginPage = () => {
             <button
               type="submit"
               className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700"
+              disabled={loading}
             >
-              Login
+              {loading ? "Logging in..." : "Login"}
             </button>
           </form>
           <p className="mt-4 text-center text-sm text-gray-600">
