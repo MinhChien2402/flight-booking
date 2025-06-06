@@ -17,26 +17,28 @@ const FlightSearchForm = ({ onSearch = () => {}, defaultData = {} }) => {
   //#region Selector
   const airports = useSelector((state) => state.airports?.data || []);
   //#endregion Selector
+
   //#region Declare State
-  const [tripType, setTripType] = useState(defaultData.tripType || "oneWay");
+  const [tripType, setTripType] = useState(defaultData.TripType || "oneWay");
   const [departureCity, setDepartureCity] = useState(
-    defaultData.departureAirportId?.toString() || ""
+    defaultData.DepartureAirportId?.toString() || ""
   );
   const [destinationCity, setDestinationCity] = useState(
-    defaultData.arrivalAirportId?.toString() || ""
+    defaultData.ArrivalAirportId?.toString() || ""
   );
   const [departureDate, setDepartureDate] = useState(
-    defaultData.departureDate || ""
+    defaultData.DepartureDate || ""
   );
-  const [returnDate, setReturnDate] = useState(defaultData.returnDate || "");
+  const [returnDate, setReturnDate] = useState(defaultData.ReturnDate || "");
   const [travellersInfo, setTravellersInfo] = useState({
-    displayText: defaultData.travellers
-      ? `${defaultData.travellers} & ${defaultData.flightClass || "Economy"}`
+    displayText: defaultData.Adults
+      ? `${defaultData.Adults} & ${defaultData.FlightClass || "Economy"}`
       : "1 & Economy",
-    adults: defaultData.travellers ? Math.max(1, defaultData.travellers) : 1,
-    children: 0,
-    seatType: defaultData.flightClass || "Economy",
+    adults: defaultData.Adults ? Math.max(1, defaultData.Adults) : 1,
+    children: defaultData.Children || 0,
+    seatType: defaultData.FlightClass || "Economy",
   });
+  const [ticketPrice, setTicketPrice] = useState(null);
   //#endregion Declare State
 
   //#region Implement Hook
@@ -47,70 +49,77 @@ const FlightSearchForm = ({ onSearch = () => {}, defaultData = {} }) => {
       return isNaN(parsedDate) ? "" : parsedDate.toISOString().split("T")[0];
     };
 
-    // Chỉ đồng bộ khi state ban đầu trống
-    if (!departureCity && defaultData.departureAirportId?.toString()) {
-      setDepartureCity(defaultData.departureAirportId?.toString() || "");
-    }
-    if (!destinationCity && defaultData.arrivalAirportId?.toString()) {
-      setDestinationCity(defaultData.arrivalAirportId?.toString() || "");
-    }
-    if (!departureDate && defaultData.departureDate) {
-      const formattedDepartureDate = formatDefaultDate(
-        defaultData.departureDate
-      );
-      setDepartureDate(formattedDepartureDate);
-    }
-    if (!returnDate && defaultData.returnDate) {
-      const formattedReturnDate = formatDefaultDate(defaultData.returnDate);
-      setReturnDate(formattedReturnDate);
-    }
+    setTripType(defaultData.TripType || "oneWay");
+    setDepartureCity(defaultData.DepartureAirportId?.toString() || "");
+    setDestinationCity(defaultData.ArrivalAirportId?.toString() || "");
+    setDepartureDate(formatDefaultDate(defaultData.DepartureDate));
+    setReturnDate(formatDefaultDate(defaultData.ReturnDate));
 
     const newTravellersInfo = {
-      displayText: defaultData.travellers
-        ? `${defaultData.travellers} & ${defaultData.flightClass || "Economy"}`
+      displayText: defaultData.Adults
+        ? `${defaultData.Adults} & ${defaultData.FlightClass || "Economy"}`
         : "1 & Economy",
-      adults: defaultData.travellers ? Math.max(1, defaultData.travellers) : 1,
-      children: 0,
-      seatType: defaultData.flightClass || "Economy",
+      adults: defaultData.Adults ? Math.max(1, defaultData.Adults) : 1,
+      children: defaultData.Children || 0,
+      seatType: defaultData.FlightClass || "Economy",
     };
+    setTravellersInfo(newTravellersInfo);
+  }, [
+    defaultData.TripType,
+    defaultData.DepartureAirportId,
+    defaultData.ArrivalAirportId,
+    defaultData.DepartureDate,
+    defaultData.ReturnDate,
+    defaultData.Adults,
+    defaultData.Children,
+    defaultData.FlightClass,
+  ]);
 
-    if (
-      travellersInfo.displayText !== newTravellersInfo.displayText ||
-      travellersInfo.adults !== newTravellersInfo.adults ||
-      travellersInfo.children !== newTravellersInfo.children ||
-      travellersInfo.seatType !== newTravellersInfo.seatType
-    ) {
-      setTravellersInfo(newTravellersInfo);
-    }
-  }, [defaultData]);
+  useEffect(() => {
+    const basePrice = 300; // Đồng bộ với SearchResultsPage
+    const adultPrice = basePrice * travellersInfo.adults;
+    const childPrice = basePrice * 0.7 * travellersInfo.children; // Giá trẻ em là 70% giá người lớn
+    const totalPrice = adultPrice + childPrice;
+    setTicketPrice(totalPrice);
+  }, [travellersInfo]);
   //#endregion Implement Hook
 
   //#region Handle Function
   const handleTripTypeChange = (type) => {
-    setTripType(type);
-    if (type === "oneWay") {
+    const normalizedType = type === "roundTrip" ? "roundTrip" : "oneWay";
+    setTripType(normalizedType);
+    if (normalizedType === "oneWay") {
       setReturnDate("");
     }
   };
 
-  const handleTravellersChange = useCallback((info) => {
-    setTravellersInfo(info);
-  }, []);
+  const handleTravellersChange = useCallback(
+    (info) => {
+      console.log("Travellers info updated:", info);
+      setTravellersInfo(info);
+      const searchParams = {
+        DepartureAirportId: parseInt(departureCity) || 0,
+        ArrivalAirportId: parseInt(destinationCity) || 0,
+        DepartureDate: departureDate ? formatDateForApi(departureDate) : null,
+        TripType: tripType || "oneWay",
+        Adults: info.adults || 1,
+        Children: info.children || 0,
+        FlightClass: info.seatType.toLowerCase() || "economy",
+        ReturnDate:
+          tripType === "roundTrip" && returnDate
+            ? formatDateForApi(returnDate)
+            : null,
+      };
+      console.log("Calling onSearch with params:", searchParams);
+      onSearch(searchParams);
+    },
+    [departureCity, destinationCity, departureDate, returnDate, tripType]
+  );
 
   const isValidDate = (dateStr) => {
     if (!dateStr) return false;
     const date = new Date(dateStr);
     return date instanceof Date && !isNaN(date) && dateStr.includes("-");
-  };
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return "";
-    const date = new Date(dateStr);
-    if (isNaN(date)) {
-      console.warn("Invalid date:", dateStr);
-      return "";
-    }
-    return date.toISOString().split("T")[0];
   };
 
   const validateForm = () => {
@@ -125,7 +134,7 @@ const FlightSearchForm = ({ onSearch = () => {}, defaultData = {} }) => {
     });
 
     if (airports.length === 0) {
-      toast.error("Danh sách sân bay chưa tải xong, vui lòng thử lại!");
+      toast.error("The airport list has not been completed, please try again!");
       return false;
     }
 
@@ -133,67 +142,85 @@ const FlightSearchForm = ({ onSearch = () => {}, defaultData = {} }) => {
       !departureCity ||
       !airports.some((a) => a.id.toString() === departureCity)
     ) {
-      toast.error("Vui lòng chọn sân bay khởi hành hợp lệ!");
+      toast.error("Please choose the airport to depart valid!");
       return false;
     }
     if (
       !destinationCity ||
       !airports.some((a) => a.id.toString() === destinationCity)
     ) {
-      toast.error("Vui lòng chọn sân bay điểm đến hợp lệ!");
+      toast.error("Please choose a valid airport!");
       return false;
     }
     if (!departureDate || !isValidDate(departureDate)) {
-      toast.error("Vui lòng chọn ngày khởi hành hợp lệ!");
+      toast.error("Please choose a valid departure date!");
       return false;
     }
     if (tripType === "roundTrip" && (!returnDate || !isValidDate(returnDate))) {
-      toast.error("Vui lòng chọn ngày về hợp lệ cho chuyến khứ hồi!");
+      toast.error("Please choose a valid date for a round trip!");
       return false;
     }
     if (
       tripType === "roundTrip" &&
       new Date(returnDate) < new Date(departureDate)
     ) {
-      toast.error("Ngày về phải sau ngày khởi hành!");
+      toast.error("The day must be after the departure date!");
       return false;
     }
     if (travellersInfo.adults + travellersInfo.children <= 0) {
-      toast.error("Phải có ít nhất 1 hành khách!");
+      toast.error("There must be at least 1 passenger!");
       return false;
     }
     return true;
   };
 
+  const formatDateForApi = (dateStr) => {
+    if (!dateStr) return null;
+    const date = new Date(dateStr);
+    if (isNaN(date)) {
+      console.warn("Invalid date:", dateStr);
+      return null;
+    }
+    const offset = 7 * 60; // UTC+7 in minutes
+    const localDate = new Date(date.getTime() + offset * 60 * 1000);
+    return localDate.toISOString().replace("Z", "+07:00");
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
-    console.log("Submitting form with:", {
-      departureCity,
-      destinationCity,
-      departureDate,
-      returnDate,
-      tripType,
-      travellersInfo,
-    });
     if (!validateForm()) return;
 
-    try {
-      const searchParams = {
-        departureAirportId: parseInt(departureCity),
-        arrivalAirportId: parseInt(destinationCity),
-        departureDate,
-        tripType,
-        travellers: travellersInfo.adults + travellersInfo.children,
-        flightClass: travellersInfo.seatType,
-        returnDate: tripType === "roundTrip" ? returnDate : null,
-      };
-      console.log("Submitting search with params:", searchParams);
-      await onSearch(searchParams);
-      navigate("/search-results", { state: searchParams });
-    } catch (error) {
-      console.error("Submit error:", error);
-      toast.error("Lỗi khi tìm kiếm: " + (error.message || "Đã có lỗi xảy ra"));
+    const searchParams = {
+      DepartureAirportId: parseInt(departureCity) || 0,
+      ArrivalAirportId: parseInt(destinationCity) || 0,
+      DepartureDate: departureDate ? formatDateForApi(departureDate) : null,
+      TripType: tripType || "oneWay",
+      Adults: travellersInfo.adults || 1,
+      Children: travellersInfo.children || 0,
+      FlightClass: travellersInfo.seatType.toLowerCase() || "economy",
+      ReturnDate:
+        tripType === "roundTrip" && returnDate
+          ? formatDateForApi(returnDate)
+          : null,
+    };
+
+    console.log("Final searchParams before sending:", searchParams);
+    if (
+      !searchParams.DepartureAirportId ||
+      !searchParams.ArrivalAirportId ||
+      searchParams.DepartureDate === null
+    ) {
+      toast.error("Please fill in mandatory information!");
+      return;
     }
+
+    onSearch(searchParams);
+
+    navigate("/search-results", {
+      state: {
+        searchParams,
+      },
+    });
   };
   //#endregion Handle Function
 
@@ -254,7 +281,7 @@ const FlightSearchForm = ({ onSearch = () => {}, defaultData = {} }) => {
                 type="date"
                 value={departureDate}
                 onChange={(e) => {
-                  const newDate = formatDate(e.target.value);
+                  const newDate = e.target.value;
                   console.log(
                     "Selected departure date:",
                     e.target.value,
@@ -268,7 +295,10 @@ const FlightSearchForm = ({ onSearch = () => {}, defaultData = {} }) => {
               />
             </div>
             <div className="relative z-20">
-              <TravellersDropdown onChange={handleTravellersChange} />
+              <TravellersDropdown
+                value={travellersInfo}
+                onChange={handleTravellersChange}
+              />
             </div>
           </div>
           {tripType === "roundTrip" && (
@@ -282,14 +312,14 @@ const FlightSearchForm = ({ onSearch = () => {}, defaultData = {} }) => {
                     type="date"
                     value={returnDate}
                     onChange={(e) => {
-                      const newDate = formatDate(e.target.value);
+                      const newDate = e.target.value;
                       console.log(
                         "Selected return date:",
                         e.target.value,
                         "formatted:",
                         newDate
                       );
-                      setReturnDate(newDate); // Sửa lỗi: dùng setReturnDate thay vì setDepartureDate
+                      setReturnDate(newDate);
                     }}
                     min={
                       departureDate || new Date().toISOString().split("T")[0]

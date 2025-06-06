@@ -1,7 +1,12 @@
+// Libs
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+// Components, Layouts, Pages
+import Header from "../../components/header/Header";
+import Footer from "../../components/footer/Footer";
+// Others
 import {
   getListTickets,
   createTicket,
@@ -9,17 +14,22 @@ import {
   deleteTicket,
   getPlanesByAirline,
 } from "../../thunk/ticketThunk";
-import Header from "../../components/header/Header";
-import Footer from "../../components/footer/Footer";
 import { getListAirports } from "../../thunk/airportThunk";
 import { getAirlines } from "../../thunk/airlineThunk";
+// Styles, images, icons
 
 const Tickets = () => {
+  //#region Declare Hook
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  //#endregion Declare Hook
+
+  //#region Selector
   const { tickets, airlines, airports, loading, error, planesByAirline } =
     useSelector((state) => state.ticket);
+  //#endregion Selector
 
+  //#region Declare State
   const [searchTerm, setSearchTerm] = useState("");
   const [sortOption, setSortOption] = useState("id");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -38,15 +48,15 @@ const Tickets = () => {
     flightClass: "",
     availableSeats: "",
   });
+  //#endregion Declare State
 
-  // Tải danh sách tickets, airlines, airports khi component mount
+  //#region Implement Hook
   useEffect(() => {
     dispatch(getListTickets());
     dispatch(getAirlines());
     dispatch(getListAirports());
   }, [dispatch]);
 
-  // Lấy danh sách máy bay theo airlineId từ Redux store
   useEffect(() => {
     if (formData.airlineId) {
       dispatch(getPlanesByAirline(formData.airlineId))
@@ -59,7 +69,6 @@ const Tickets = () => {
     }
   }, [formData.airlineId, dispatch]);
 
-  // Xử lý thông báo khi không có máy bay
   useEffect(() => {
     if (
       formData.airlineId &&
@@ -67,7 +76,7 @@ const Tickets = () => {
       !loading &&
       error
     ) {
-      toast.warn("Không tìm thấy máy bay cho hãng hàng không này!");
+      toast.warn("No plane for this airline!");
     }
   }, [planesByAirline, loading, error, formData.airlineId]);
 
@@ -77,8 +86,8 @@ const Tickets = () => {
   };
 
   const validateForm = () => {
-    const departureTime = new Date(formData.departureTime);
-    const arrivalTime = new Date(formData.arrivalTime);
+    const departureTime = formData.departureTime;
+    const arrivalTime = formData.arrivalTime;
 
     if (
       !formData.airlineId ||
@@ -92,28 +101,30 @@ const Tickets = () => {
       !formData.flightClass ||
       !formData.availableSeats
     ) {
-      toast.error("Vui lòng điền đầy đủ các trường bắt buộc!");
+      toast.error("Please fill in the mandatory schools!");
       return false;
     }
 
     if (departureTime >= arrivalTime) {
-      toast.error("Thời gian khởi hành phải trước thời gian đến!");
+      toast.error("Departure time must be before the coming time!");
       return false;
     }
 
     if (parseFloat(formData.price) < 0) {
-      toast.error("Giá vé không được âm!");
+      toast.error("The ticket price is not negative!");
       return false;
     }
 
     if (parseInt(formData.availableSeats) < 0) {
-      toast.error("Số ghế khả dụng không được âm!");
+      toast.error("Number of available seats is not negative!");
       return false;
     }
 
     return true;
   };
+  //#endregion Implement Hook
 
+  //#region Handle Function
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
@@ -121,13 +132,13 @@ const Tickets = () => {
     setIsSubmitting(true);
 
     const payload = {
-      Id: isEditing ? editingId : 0, // Thêm Id vào payload, 0 cho create
+      Id: isEditing ? editingId : 0,
       airlineId: parseInt(formData.airlineId),
       departureAirportId: parseInt(formData.departureAirportId),
       arrivalAirportId: parseInt(formData.arrivalAirportId),
       planeId: parseInt(formData.planeId),
-      departureTime: new Date(formData.departureTime).toISOString(),
-      arrivalTime: new Date(formData.arrivalTime).toISOString(),
+      departureTime: formData.departureTime + ":00+07:00",
+      arrivalTime: formData.arrivalTime + ":00+07:00",
       stops: parseInt(formData.stops),
       price: parseFloat(formData.price),
       flightClass: formData.flightClass,
@@ -179,7 +190,7 @@ const Tickets = () => {
   };
 
   const handleDelete = (id) => {
-    if (window.confirm("Bạn có chắc muốn xóa vé này?")) {
+    if (window.confirm("Are you sure to delete this ticket?")) {
       dispatch(deleteTicket(id))
         .unwrap()
         .then(() => {
@@ -241,6 +252,7 @@ const Tickets = () => {
         toast.error("Error when downloading the ticket list!");
       });
   };
+  //#endregion Handle Function
 
   return (
     <div className="flex flex-col min-h-screen">

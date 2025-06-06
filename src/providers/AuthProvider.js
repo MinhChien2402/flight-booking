@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { getAirlines } from "../thunk/airlineThunk";
 import { getListAirports } from "../thunk/airportThunk";
 import { getListCountries } from "../thunk/countryThunk";
-import { getListTickets, getPlanesByAirline } from "../thunk/ticketThunk";
+import { getListTickets } from "../thunk/ticketThunk";
 import { getListPlanes } from "../thunk/planeThunk";
 
 const AuthContext = createContext();
@@ -14,8 +14,6 @@ export const AuthProvider = ({ children }) => {
 
     useEffect(() => {
         if (isLoggedIn) {
-            console.log("User logged in, fetching initial data...");
-            // Gọi các API để lấy danh sách dữ liệu
             dispatch(getAirlines())
                 .unwrap()
                 .then((data) => console.log("Airlines:", data))
@@ -37,11 +35,6 @@ export const AuthProvider = ({ children }) => {
                 .catch((error) => console.error("Error fetching tickets:", error));
 
             dispatch(getListPlanes())
-                .unwrap()
-                .then((data) => console.log("Planes:", data))
-                .catch((error) => console.error("Error fetching planes:", error));
-
-            dispatch(getPlanesByAirline())
                 .unwrap()
                 .then((data) => console.log("Planes:", data))
                 .catch((error) => console.error("Error fetching planes:", error));

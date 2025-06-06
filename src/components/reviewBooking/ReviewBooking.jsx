@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
+import { toast } from "react-toastify";
 // Components, Layouts, Pages
 import Header from "../../components/header/Header";
 import Footer from "../footer/Footer";
@@ -17,55 +18,88 @@ const ReviewBooking = () => {
   const { status, error, currentBooking } = useSelector(
     (state) => state.booking
   );
-  const flight = location.state || {};
+  const { flight, searchParams } = location.state || {
+    flight: {},
+    searchParams: {},
+  };
   //#endregion Declare Hook
+
   //#region Declare State
   const [isModalOpen, setModalOpen] = useState(false);
   const [isFormValid, setIsFormValid] = useState(false);
-  const [passengerInfo, setPassengerInfo] = useState({
-    Title: "",
-    FirstName: "",
-    LastName: "",
-    DateOfBirth: "",
-    PassportNumber: "",
-    PassportExpiry: "",
+  const [passengerInfo, setPassengerInfo] = useState(() => {
+    const adults = parseInt(searchParams.Adults) || 1;
+    const children = parseInt(searchParams.Children) || 0;
+    const passengers = [];
+    for (let i = 0; i < adults; i++) {
+      passengers.push({
+        type: "Adult",
+        index: i + 1,
+        Title: "",
+        FirstName: "",
+        LastName: "",
+        DateOfBirth: "",
+        PassportNumber: "",
+        PassportExpiry: "",
+      });
+    }
+    for (let i = 0; i < children; i++) {
+      passengers.push({
+        type: "Child",
+        index: i + 1,
+        Title: "",
+        FirstName: "",
+        LastName: "",
+        DateOfBirth: "",
+        PassportNumber: "",
+        PassportExpiry: "",
+      });
+    }
+    return passengers;
   });
+  // Lấy ngày hiện tại định dạng YYYY-MM-DD
+  const today = new Date().toISOString().split("T")[0];
   //#endregion Declare State
 
-  const total = flight.price
-    ? parseFloat(flight.price.replace("$", "") || "0").toFixed(2)
-    : "0.00";
+  // Tính total từ flight.price, xử lý giá trị mặc định
+  const priceValue = flight.price
+    ? parseFloat(flight.price.replace("$", "") || "0")
+    : 0;
+  const total = priceValue.toFixed(2);
 
   useEffect(() => {
-    const isValid =
-      passengerInfo.Title &&
-      passengerInfo.FirstName &&
-      passengerInfo.LastName &&
-      passengerInfo.DateOfBirth &&
-      passengerInfo.PassportNumber &&
-      passengerInfo.PassportExpiry;
+    const isValid = passengerInfo.every(
+      (passenger) =>
+        passenger.Title &&
+        passenger.FirstName &&
+        passenger.LastName &&
+        passenger.DateOfBirth &&
+        passenger.PassportNumber &&
+        passenger.PassportExpiry
+    );
     setIsFormValid(!!isValid);
   }, [passengerInfo]);
 
   useEffect(() => {
     if (status === "succeeded" && currentBooking) {
-      alert(currentBooking.message);
+      toast.success(currentBooking.message);
       navigate("/thank-you", {
         state: { bookingId: currentBooking.bookingId },
       });
     } else if (status === "failed" && error) {
       console.error("Lỗi đặt vé:", error);
-      alert("Không thể xác nhận đặt vé: " + error);
+      toast.error("Không thể xác nhận đặt vé: " + error);
     }
   }, [status, currentBooking, error, navigate]);
 
   //#region Handle Function
-  const handleChange = (e) => {
+  const handleChange = (index, e) => {
     const { name, value } = e.target;
-    setPassengerInfo((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setPassengerInfo((prev) =>
+      prev.map((passenger, i) =>
+        i === index ? { ...passenger, [name]: value } : passenger
+      )
+    );
   };
 
   const handleConfirmClick = () => setModalOpen(true);
@@ -74,30 +108,28 @@ const ReviewBooking = () => {
 
   const handleConfirmModal = () => {
     setModalOpen(false);
-
-    console.log("TicketId gửi đi:", flight.id);
-
-    if (!flight.id) {
-      alert("Lỗi: Không tìm thấy ID vé. Vui lòng thử lại.");
+    if (!flight.id || flight.id === "unknown") {
+      toast.error("Error: No ticket id. Please try again.");
       return;
     }
 
     const ticketId = parseInt(flight.id, 10);
     if (isNaN(ticketId)) {
-      alert("Lỗi: ID vé không hợp lệ. Vui lòng chọn lại chuyến bay.");
+      toast.error(
+        "Error: Ticket ID is invalid. Please select the flight again."
+      );
       return;
     }
 
     const requestBody = {
       ticketId: ticketId,
       totalPrice: parseFloat(total),
-      passengers: [passengerInfo],
+      passengers: passengerInfo,
     };
 
-    console.log("Dữ liệu gửi đi:", JSON.stringify(requestBody, null, 2));
     dispatch(createBooking(requestBody));
   };
-  //#region Handle Function
+  //#endregion Handle Function
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -162,96 +194,101 @@ const ReviewBooking = () => {
           Total: ${total}
         </div>
 
-        <div className="mt-6 border rounded-md p-4 bg-gray-50">
-          <h2 className="text-lg font-semibold mb-4">Adult Information - 1</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block mb-1 text-sm font-medium text-gray-700">
-                Title
-              </label>
-              <select
-                name="Title"
-                value={passengerInfo.Title}
-                onChange={handleChange}
-                className="border p-2 rounded w-full"
-                required
-              >
-                <option value="" disabled>
-                  Select Title
-                </option>
-                <option value="Mr">Mr</option>
-                <option value="Ms">Ms</option>
-                <option value="Mrs">Mrs</option>
-                <option value="Miss">Miss</option>
-              </select>
-            </div>
-            <div>
-              <label className="block mb-1 text-sm font-medium text-gray-700">
-                Date of Birth
-              </label>
-              <input
-                type="date"
-                name="DateOfBirth"
-                value={passengerInfo.DateOfBirth}
-                onChange={handleChange}
-                className="border p-2 rounded w-full"
-                required
-              />
-            </div>
-            <div>
-              <label className="block mb-1 text-sm font-medium text-gray-700">
-                First Name
-              </label>
-              <input
-                type="text"
-                name="FirstName"
-                value={passengerInfo.FirstName}
-                onChange={handleChange}
-                className="border p-2 rounded w-full"
-                required
-              />
-            </div>
-            <div>
-              <label className="block mb-1 text-sm font-medium text-gray-700">
-                Last Name
-              </label>
-              <input
-                type="text"
-                name="LastName"
-                value={passengerInfo.LastName}
-                onChange={handleChange}
-                className="border p-2 rounded w-full"
-                required
-              />
-            </div>
-            <div>
-              <label className="block mb-1 text-sm font-medium text-gray-700">
-                Passport Number
-              </label>
-              <input
-                type="text"
-                name="PassportNumber"
-                value={passengerInfo.PassportNumber}
-                onChange={handleChange}
-                className="border p-2 rounded w-full"
-                required
-              />
-            </div>
-            <div>
-              <label className="block mb-1 text-sm font-medium text-gray-700">
-                Passport Expiry
-              </label>
-              <input
-                type="date"
-                name="PassportExpiry"
-                value={passengerInfo.PassportExpiry}
-                onChange={handleChange}
-                className="border p-2 rounded w-full"
-                required
-              />
+        {passengerInfo.map((passenger, index) => (
+          <div key={index} className="mt-6 border rounded-md p-4 bg-gray-50">
+            <h2 className="text-lg font-semibold mb-4">
+              {passenger.type} Information - {passenger.index}
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block mb-1 text-sm font-medium text-gray-700">
+                  Title
+                </label>
+                <select
+                  name="Title"
+                  value={passenger.Title}
+                  onChange={(e) => handleChange(index, e)}
+                  className="border p-2 rounded w-full"
+                  required
+                >
+                  <option value="" disabled>
+                    Select Title
+                  </option>
+                  <option value="Mr">Mr</option>
+                  <option value="Ms">Ms</option>
+                  <option value="Mrs">Mrs</option>
+                  <option value="Miss">Miss</option>
+                </select>
+              </div>
+              <div>
+                <label className="block mb-1 text-sm font-medium text-gray-700">
+                  Date of Birth
+                </label>
+                <input
+                  type="date"
+                  name="DateOfBirth"
+                  value={passenger.DateOfBirth}
+                  onChange={(e) => handleChange(index, e)}
+                  max={today}
+                  className="border p-2 rounded w-full"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block mb-1 text-sm font-medium text-gray-700">
+                  First Name
+                </label>
+                <input
+                  type="text"
+                  name="FirstName"
+                  value={passenger.FirstName}
+                  onChange={(e) => handleChange(index, e)}
+                  className="border p-2 rounded w-full"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block mb-1 text-sm font-medium text-gray-700">
+                  Last Name
+                </label>
+                <input
+                  type="text"
+                  name="LastName"
+                  value={passenger.LastName}
+                  onChange={(e) => handleChange(index, e)}
+                  className="border p-2 rounded w-full"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block mb-1 text-sm font-medium text-gray-700">
+                  Passport Number
+                </label>
+                <input
+                  type="text"
+                  name="PassportNumber"
+                  value={passenger.PassportNumber}
+                  onChange={(e) => handleChange(index, e)}
+                  className="border p-2 rounded w-full"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block mb-1 text-sm font-medium text-gray-700">
+                  Passport Expiry
+                </label>
+                <input
+                  type="date"
+                  name="PassportExpiry"
+                  value={passenger.PassportExpiry}
+                  onChange={(e) => handleChange(index, e)}
+                  className="border p-2 rounded w-full"
+                  required
+                />
+              </div>
             </div>
           </div>
-        </div>
+        ))}
 
         {isFormValid && (
           <button

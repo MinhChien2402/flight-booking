@@ -1,10 +1,12 @@
 // Libs
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { toast } from "react-toastify";
 // Components, Layouts, Pages
 // Others
 import { getUserProfile, updateUserProfile } from "../../thunk/profileThunk";
 // Styles, images, icons
+import "react-toastify/dist/ReactToastify.css";
 
 const AccountInfo = () => {
   //#region Declare Hook
@@ -14,9 +16,13 @@ const AccountInfo = () => {
   //#region Selector
   const { userInfo, status, error } = useSelector((state) => state.user);
   //#endregion Selector
+
   //#region Declare State
   const [isEditing, setIsEditing] = useState(false);
   const [editedInfo, setEditedInfo] = useState({ ...userInfo });
+  const [loading, setLoading] = useState(false);
+
+  const today = new Date().toISOString().split("T")[0];
   //#endregion Declare State
 
   //#region Implement Hook
@@ -38,12 +44,23 @@ const AccountInfo = () => {
   };
 
   const handleSave = async () => {
+    setLoading(true);
     try {
       await dispatch(updateUserProfile(editedInfo)).unwrap();
       await dispatch(getUserProfile()).unwrap();
       setIsEditing(false);
+      toast.success("Change information successfully!", {
+        position: "top-right",
+        autoClose: 3000,
+      });
     } catch (error) {
       console.error("Failed to update profile:", error);
+      toast.error(`Lỗi: ${error.message || "Update failure"}`, {
+        position: "top-right",
+        autoClose: 3000,
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -55,7 +72,7 @@ const AccountInfo = () => {
     }));
   };
 
-  if (status === "loading") return <div>Loading...</div>;
+  if (status === "loading" && !loading) return <div>Loading...</div>;
   if (status === "failed") return <div>Error: {error}</div>;
   //#endregion Handle Function
 
@@ -71,8 +88,13 @@ const AccountInfo = () => {
             { label: "Full Name", name: "fullName", type: "text" },
             { label: "Email", name: "email", type: "email" },
             { label: "Phone Number", name: "phoneNumber", type: "text" },
-            { label: "Date of Birth", name: "dateOfBirth", type: "date" },
-          ].map(({ label, name, type }) => (
+            {
+              label: "Date of Birth",
+              name: "dateOfBirth",
+              type: "date",
+              max: today,
+            },
+          ].map(({ label, name, type, max }) => (
             <div
               key={name}
               className="flex flex-col sm:flex-row sm:items-center"
@@ -87,7 +109,9 @@ const AccountInfo = () => {
                     name={name}
                     value={editedInfo[name] || ""}
                     onChange={handleChange}
+                    max={max}
                     className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-purple-400 focus:outline-none"
+                    disabled={loading}
                   />
                 ) : (
                   <div>{userInfo[name] || ""}</div>
@@ -101,13 +125,19 @@ const AccountInfo = () => {
             <>
               <button
                 onClick={handleSave}
-                className="px-5 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+                disabled={loading}
+                className={`px-5 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 ${
+                  loading ? "opacity-50 cursor-not-allowed" : ""
+                }`}
               >
-                Save
+                {loading ? "Đang lưu..." : "Save"}
               </button>
               <button
                 onClick={handleCancel}
-                className="px-5 py-2 border border-gray-400 text-gray-700 rounded-md hover:bg-gray-100"
+                disabled={loading}
+                className={`px-5 py-2 border border-gray-400 text-gray-700 rounded-md hover:bg-gray-100 ${
+                  loading ? "opacity-50 cursor-not-allowed" : ""
+                }`}
               >
                 Cancel
               </button>

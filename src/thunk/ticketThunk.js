@@ -1,23 +1,40 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import axiosInstance from "../api/axiosInstance";
 
-// Tìm kiếm vé máy bay
 export const searchTickets = createAsyncThunk(
     "ticket/searchTickets",
     async (searchParams, { rejectWithValue }) => {
         try {
             const params = {
-                departureAirportId: searchParams.departureAirportId,
-                arrivalAirportId: searchParams.arrivalAirportId,
-                departureDate: searchParams.departureDate,
+                DepartureAirportId: searchParams.DepartureAirportId || 0,
+                ArrivalAirportId: searchParams.ArrivalAirportId || 0,
+                DepartureDate: searchParams.DepartureDate || "",
+                TripType: searchParams.TripType || "oneWay",
+                Adults: searchParams.Adults || 1,
+                Children: searchParams.Children || 0,
+                FlightClass: searchParams.FlightClass || "Economy",
+                ReturnDate: searchParams.ReturnDate || null,
             };
-            console.log("Calling API with params:", params);
+
+            // Gọi API
             const response = await axiosInstance.post("/tickets/search", params);
 
+            // Kiểm tra phản hồi
+            if (!response.data) {
+                throw new Error("No data returned from API");
+            }
+
+            console.log("API response:", response.data);
             return response.data;
         } catch (error) {
-            console.error("API error:", error);
-            return rejectWithValue(error.response?.data || "Lỗi tìm kiếm vé");
+            console.error("API error details:", {
+                message: error.message,
+                response: error.response?.data,
+                status: error.response?.status,
+            });
+            return rejectWithValue(
+                error.response?.data?.message || error.message || "Lỗi tìm kiếm vé"
+            );
         }
     }
 );
@@ -31,6 +48,19 @@ export const getListTickets = createAsyncThunk(
             return response.data;
         } catch (error) {
             return thunkAPI.rejectWithValue(error.response?.data || error.message);
+        }
+    }
+);
+
+// Lấy chi tiết vé theo ID (Thêm mới)
+export const getTicket = createAsyncThunk(
+    "ticket/getTicket",
+    async (id, { rejectWithValue }) => {
+        try {
+            const response = await axiosInstance.get(`/tickets/${id}`);
+            return response.data;
+        } catch (error) {
+            return rejectWithValue(error.response?.data || "Lỗi lấy chi tiết vé");
         }
     }
 );

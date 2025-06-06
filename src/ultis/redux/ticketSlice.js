@@ -15,43 +15,51 @@ const ticketSlice = createSlice({
     name: "ticket",
     initialState: {
         tickets: [],
-        airlines: [], // Thêm state cho airlines
-        planes: [],   // Thêm state cho planes
-        airports: [], // Thêm state cho airports
-        planesByAirline: [], // Thêm state cho planes theo airlineId
+        outboundTickets: [],
+        returnTickets: [],
+        airlines: [],
+        planes: [],
+        airports: [],
+        planesByAirline: [],
         loading: false,
         error: null,
     },
     reducers: {},
     extraReducers: (builder) => {
-        // Search Tickets
         builder
             .addCase(searchTickets.pending, (state) => {
                 state.loading = true;
                 state.error = null;
+                console.log("Search tickets pending...");
             })
             .addCase(searchTickets.fulfilled, (state, action) => {
                 state.loading = false;
-                state.tickets = action.payload;
+                state.outboundTickets = action.payload.OutboundTickets || action.payload.outboundTickets || [];
+                state.returnTickets = action.payload.ReturnTickets || action.payload.returnTickets || [];
+                state.error = null;
+                console.log("Updated outboundTickets:", state.outboundTickets);
+                console.log("Updated returnTickets:", state.returnTickets);
             })
             .addCase(searchTickets.rejected, (state, action) => {
                 state.loading = false;
-                state.error = action.payload;
+                state.error = action.payload || "Lỗi không xác định";
+                state.outboundTickets = [];
+                state.returnTickets = [];
+                console.log("Search tickets rejected - Error:", state.error);
             })
-            // Get List Tickets
             .addCase(getListTickets.pending, (state) => {
                 state.loading = true;
                 state.error = null;
             })
             .addCase(getListTickets.fulfilled, (state, action) => {
                 state.loading = false;
-                state.tickets = action.payload;
+                state.tickets = action.payload || [];
             })
             .addCase(getListTickets.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
+                state.tickets = [];
             })
-            // Create Ticket
             .addCase(createTicket.pending, (state) => {
                 state.loading = true;
                 state.error = null;
@@ -64,7 +72,6 @@ const ticketSlice = createSlice({
                 state.loading = false;
                 state.error = action.payload;
             })
-            // Update Ticket
             .addCase(updateTicket.pending, (state) => {
                 state.loading = true;
                 state.error = null;
@@ -82,7 +89,6 @@ const ticketSlice = createSlice({
                 state.loading = false;
                 state.error = action.payload;
             })
-            // Delete Ticket
             .addCase(deleteTicket.pending, (state) => {
                 state.loading = true;
                 state.error = null;
@@ -97,61 +103,57 @@ const ticketSlice = createSlice({
                 state.loading = false;
                 state.error = action.payload;
             })
-            // Get Airlines
             .addCase(getAirlines.pending, (state) => {
                 state.loading = true;
                 state.error = null;
             })
             .addCase(getAirlines.fulfilled, (state, action) => {
                 state.loading = false;
-                state.airlines = action.payload;
+                state.airlines = action.payload || [];
             })
             .addCase(getAirlines.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
-                state.airlines = []; // Đảm bảo airlines không bị undefined
+                state.airlines = [];
             })
-            // Get Planes
             .addCase(getListPlanes.pending, (state) => {
                 state.loading = true;
                 state.error = null;
             })
             .addCase(getListPlanes.fulfilled, (state, action) => {
                 state.loading = false;
-                state.planes = action.payload;
+                state.planes = action.payload || [];
             })
             .addCase(getListPlanes.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
-                state.planes = []; // Đảm bảo planes không bị undefined
+                state.planes = [];
             })
-            // Get Airports
             .addCase(getListAirports.pending, (state) => {
                 state.loading = true;
                 state.error = null;
             })
             .addCase(getListAirports.fulfilled, (state, action) => {
                 state.loading = false;
-                state.airports = action.payload;
+                state.airports = action.payload || [];
             })
             .addCase(getListAirports.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
-                state.airports = []; // Đảm bảo airports không bị undefined
+                state.airports = [];
             })
-            // Get Planes By Airline
             .addCase(getPlanesByAirline.pending, (state) => {
                 state.loading = true;
                 state.error = null;
             })
             .addCase(getPlanesByAirline.fulfilled, (state, action) => {
                 state.loading = false;
-                state.planesByAirline = action.payload;
+                state.planesByAirline = action.payload || [];
             })
             .addCase(getPlanesByAirline.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
-                state.planesByAirline = []; // Đảm bảo planesByAirline không bị undefined
+                state.planesByAirline = [];
             });
     },
 });
