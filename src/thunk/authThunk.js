@@ -23,7 +23,9 @@ export const loginUser = createAsyncThunk(
             localStorage.setItem("token", response.data.token);
             localStorage.setItem("isLoggedIn", "true");
             localStorage.setItem("role", response.data.user.role);
-            localStorage.setItem("currentUser", JSON.stringify(response.data.user));
+
+            const { password, ...safeUser } = response.data.user;
+            localStorage.setItem("currentUser", JSON.stringify(safeUser));
             return response.data;
         } catch (error) {
             return rejectWithValue(error.response.data.message || "Login failed");
