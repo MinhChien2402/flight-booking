@@ -6,6 +6,7 @@ import { toast } from "react-toastify";
 // Components, Layouts, Pages
 import Header from "../../components/header/Header";
 import Footer from "../../components/footer/Footer";
+import Button from "../../components/button/Button";
 // Others
 import {
   getListTickets,
@@ -17,6 +18,7 @@ import {
 import { getListAirports } from "../../thunk/airportThunk";
 import { getAirlines } from "../../thunk/airlineThunk";
 // Styles, images, icons
+import { BiArrowBack } from "react-icons/bi";
 
 const Tickets = () => {
   //#region Declare Hook
@@ -48,6 +50,7 @@ const Tickets = () => {
     flightClass: "",
     availableSeats: "",
   });
+  const [displayedTickets, setDisplayedTickets] = useState(tickets);
   //#endregion Declare State
 
   //#region Implement Hook
@@ -79,6 +82,27 @@ const Tickets = () => {
       toast.warn("No plane for this airline!");
     }
   }, [planesByAirline, loading, error, formData.airlineId]);
+
+  useEffect(() => {
+    const filtered = tickets.filter((ticket) => {
+      const keyword = searchTerm.toLowerCase();
+
+      return (
+        ticket.id.toString().includes(keyword) ||
+        ticket.airline?.name?.toLowerCase().includes(keyword) ||
+        ticket.departureAirport?.name?.toLowerCase().includes(keyword) ||
+        ticket.arrivalAirport?.name?.toLowerCase().includes(keyword) ||
+        ticket.plane?.name?.toLowerCase().includes(keyword) ||
+        ticket.departureTime?.toLowerCase().includes(keyword) ||
+        ticket.arrivalTime?.toLowerCase().includes(keyword) ||
+        ticket.price?.toString().includes(keyword) ||
+        ticket.flightClass?.toLowerCase().includes(keyword) ||
+        ticket.availableSeats?.toString().includes(keyword)
+      );
+    });
+
+    setDisplayedTickets(filtered);
+  }, [searchTerm, tickets]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -257,9 +281,15 @@ const Tickets = () => {
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
+      <Button
+        className="text-xs px-2 py-1 w-[100px] ml-[110px] mt-3"
+        onClick={() => navigate("/")}
+      >
+        <BiArrowBack size={20} />
+      </Button>
       <main className="flex-grow bg-gray-100 px-4 sm:px-6 lg:px-8 py-8">
         <div className="max-w-7xl mx-auto">
-          <h2 className="text-2xl font-bold mb-6">Manage Tickets</h2>
+          <h2 className="text-2xl font-bold mb-6 text-center">Tickets</h2>
           <div className="flex justify-between items-center mb-6">
             <div className="flex space-x-4">
               <form onSubmit={handleSearch} className="flex items-center">
@@ -271,14 +301,14 @@ const Tickets = () => {
                   className="border border-gray-300 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </form>
-              <select
+              {/* <select
                 value={sortOption}
                 onChange={handleSort}
                 className="border border-gray-300 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="id">Sort by ID</option>
                 <option value="price">Sort by Price</option>
-              </select>
+              </select> */}
             </div>
             <button
               onClick={openModal}
@@ -570,7 +600,7 @@ const Tickets = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredTickets.map((ticket) => (
+                    {displayedTickets.map((ticket) => (
                       <tr key={ticket.id}>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {ticket.id}

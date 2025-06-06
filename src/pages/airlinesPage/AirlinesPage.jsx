@@ -1,8 +1,10 @@
 // Libs
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 // Components, Layouts, Pages
 import Header from "../../components/header/Header";
 import Footer from "../../components/footer/Footer";
+import Button from "../../components/button/Button";
 // Others
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -13,10 +15,12 @@ import {
 } from "../../thunk/airlineThunk";
 import ModalAirline from "../../components/modalAirline/ModalAirline";
 // Styles, images, icons
+import { BiArrowBack } from "react-icons/bi";
 
 const AirlinesPage = () => {
   //#region Declare Hook
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   //#endregion Declare Hook
 
   //#region Selector
@@ -29,6 +33,7 @@ const AirlinesPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { countries } = useSelector((state) => state.country);
   const [airlineData, setAirlineData] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
   //#endregion Declare State
 
   //#region Implement Hook
@@ -66,22 +71,36 @@ const AirlinesPage = () => {
       }
     }
   };
+
+  const filteredList = list.filter(
+    (airline) =>
+      airline.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      airline.callsign.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      airline.country?.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
   //#endregion Handle Function
 
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
+      <Button
+        className="text-xs px-2 py-1 w-[100px] ml-[100px] mt-3"
+        onClick={() => navigate(-1)}
+      >
+        <BiArrowBack size={20} />
+      </Button>
+
       <div className="flex-grow bg-gray-50 px-6 py-10">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold mb-8 text-center">
-            Manage Airlines
-          </h1>
+          <h1 className="text-3xl font-bold mb-8 text-center">Airlines</h1>
 
           <div className="flex items-center justify-between mb-6">
             <input
               type="text"
               placeholder="Search airlines..."
               className="border p-2 rounded w-1/2"
+              value={searchTerm || ""}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
             <button
               className="bg-black text-white px-4 py-2 rounded"
@@ -125,7 +144,7 @@ const AirlinesPage = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {list.map((airline, index) => (
+                  {filteredList.map((airline, index) => (
                     <tr key={airline.id} className="text-center">
                       <td className="py-2 border-b">{index + 1}</td>
                       <td className="py-2 border-b">{airline.name}</td>

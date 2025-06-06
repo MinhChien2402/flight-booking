@@ -1,11 +1,13 @@
 // Libs
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 // Components, Layouts, Pages
 import DataTablePage from "../../components/dataTableAdmin/DataTable";
 // Others
 import Header from "../../components/header/Header";
 import Footer from "../../components/footer/Footer";
+import Button from "../../components/button/Button";
 // Others
 import {
   createCountry,
@@ -14,10 +16,12 @@ import {
   updateCountry,
 } from "../../thunk/countryThunk";
 // Styles, images, icons
+import { BiArrowBack } from "react-icons/bi";
 
 export default function CountryPage() {
   //#region Declare Hook
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   //#endregion Declare Hook
 
   //#region Selector
@@ -34,7 +38,7 @@ export default function CountryPage() {
   });
   const [isEditMode, setIsEditMode] = useState(false);
   const [formError, setFormError] = useState(null);
-
+  const [searchTerm, setSearchTerm] = useState("");
   //#endregion Declare State
 
   //#region Implement Hook
@@ -197,21 +201,42 @@ export default function CountryPage() {
     ),
   }));
 
+  const filteredCountries = countries.filter((item) =>
+    Object.values(item).some((val) =>
+      String(val).toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  );
+
+  const handleSearchChange = (value) => {
+    setSearchTerm(value);
+  };
   //#endregion Handle Function
 
   return (
     <div>
       <Header />
-      <DataTablePage
-        title="Countries"
-        searchPlaceholder="Search countries..."
-        createButtonLabel="Create Country"
-        onCreate={handleOpenCreateModal}
-        columns={columns}
-        data={formattedData}
-        loading={loading}
-        error={error}
-      />
+      <Button
+        className="text-xs px-2 py-1 w-[100px] ml-[130px] mt-3"
+        onClick={() => navigate(-1)}
+      >
+        <BiArrowBack size={20} />
+      </Button>
+      <div className="flex-grow bg-gray-50 px-6 py-10">
+        <div className="max-w-7xl mx-auto">
+          <DataTablePage
+            title="Countries"
+            searchPlaceholder="Search countries..."
+            createButtonLabel="Create Country"
+            onCreate={handleOpenCreateModal}
+            columns={columns}
+            data={formattedData}
+            loading={loading}
+            error={error}
+            searchTerm={searchTerm}
+            onSearchChange={handleSearchChange}
+          />
+        </div>
+      </div>
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

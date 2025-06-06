@@ -32,7 +32,7 @@ const Header = () => {
 
   const handleLogoClick = () => {
     if (location.pathname !== "/") {
-      navigate(-1);
+      navigate("/");
     }
   };
   //#endregion Handle Function

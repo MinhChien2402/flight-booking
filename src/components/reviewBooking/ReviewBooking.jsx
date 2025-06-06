@@ -8,7 +8,9 @@ import Header from "../../components/header/Header";
 import Footer from "../footer/Footer";
 // Others
 import { createBooking } from "../../thunk/bookingThunk";
+import Button from "../../components/button/Button";
 // Styles, images, icons
+import { BiArrowBack } from "react-icons/bi";
 
 const ReviewBooking = () => {
   //#region Declare Hook
@@ -134,6 +136,13 @@ const ReviewBooking = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
+
+      <Button
+        className="text-xs px-2 py-1 w-[100px] ml-[190px] mt-3"
+        onClick={() => navigate(-1)}
+      >
+        <BiArrowBack size={20} />
+      </Button>
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center z-50">

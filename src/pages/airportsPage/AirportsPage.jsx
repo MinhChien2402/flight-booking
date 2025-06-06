@@ -1,7 +1,9 @@
 // Libs
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 // Components, Layouts, Pages
 import DataTablePage from "../../components/dataTableAdmin/DataTable";
+import Button from "../../components/button/Button";
 // Others
 import Header from "../../components/header/Header";
 import Footer from "../../components/footer/Footer";
@@ -13,10 +15,12 @@ import {
   updateAirport,
 } from "../../thunk/airportThunk";
 // Styles, images, icons
+import { BiArrowBack } from "react-icons/bi";
 
 export default function AirportPage() {
   //#region Declare Hook
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   //#endregion Declare Hook
 
   //#region Selector
@@ -37,6 +41,7 @@ export default function AirportPage() {
   });
   const [isEditMode, setIsEditMode] = useState(false);
   const [formError, setFormError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
   //#endregion Declare State
 
   //#region Implement Hook
@@ -174,49 +179,98 @@ export default function AirportPage() {
 
   const columns = ["Id", "Name", "Code", "Additional Code", "Actions"];
 
-  const formattedData = airportData.map((airport) => ({
-    Id: airport.id,
-    Name: airport.name,
-    Code: airport.code,
-    "Additional Code": airport.additionalCode,
-    Actions: (
-      <div className="flex gap-2">
-        <button
-          onClick={() => handleEdit(airport)}
-          className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
-        >
-          Edit
-        </button>
-        <button
-          onClick={() => handleDelete(airport.id)}
-          className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
-        >
-          Delete
-        </button>
-      </div>
-    ),
-  }));
+  // const formattedData = airportData.map((airport) => ({
+  //   Id: airport.id,
+  //   Name: airport.name,
+  //   Code: airport.code,
+  //   "Additional Code": airport.additionalCode,
+  //   Actions: (
+  //     <div className="flex gap-2">
+  //       <button
+  //         onClick={() => handleEdit(airport)}
+  //         className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+  //       >
+  //         Edit
+  //       </button>
+  //       <button
+  //         onClick={() => handleDelete(airport.id)}
+  //         className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
+  //       >
+  //         Delete
+  //       </button>
+  //     </div>
+  //   ),
+  // }));
+
+  const filteredData = airportData
+    .filter((airport) => {
+      const term = searchTerm.toLowerCase();
+      return (
+        airport.id?.toString().toLowerCase().includes(term) ||
+        airport.name?.toLowerCase().includes(term) ||
+        airport.code?.toLowerCase().includes(term) ||
+        airport.additionalCode?.toLowerCase().includes(term)
+      );
+    })
+    .map((airport) => ({
+      Id: airport.id,
+      Name: airport.name,
+      Code: airport.code,
+      "Additional Code": airport.additionalCode,
+      Actions: (
+        <div className="flex gap-2">
+          <button
+            onClick={() => handleEdit(airport)}
+            className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+          >
+            Edit
+          </button>
+          <button
+            onClick={() => handleDelete(airport.id)}
+            className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
+          >
+            Delete
+          </button>
+        </div>
+      ),
+    }));
+
+  const handleSearchChange = (value) => {
+    setSearchTerm(value.toLowerCase());
+  };
   //#endregion Handle Function
 
   return (
     <div>
       <Header />
-      <DataTablePage
-        title="Airports"
-        searchPlaceholder="Search airports..."
-        createButtonLabel="Create Airport"
-        onCreate={handleOpenCreateModal}
-        columns={columns}
-        data={formattedData}
-        loading={loading}
-        error={error}
-      />
+      <Button
+        className="text-xs px-2 py-1 w-[100px] ml-[130px] mt-3"
+        onClick={() => navigate(-1)}
+      >
+        <BiArrowBack size={20} />
+      </Button>
+      <div className="flex-grow bg-gray-50 px-6 py-10">
+        <div className="max-w-7xl mx-auto">
+          <DataTablePage
+            title="Airports"
+            searchPlaceholder="Search airports..."
+            createButtonLabel="Create Airport"
+            onCreate={handleOpenCreateModal}
+            columns={columns}
+            data={filteredData}
+            searchTerm={searchTerm}
+            onSearchChange={handleSearchChange}
+            loading={loading}
+            error={error}
+          />
+        </div>
+      </div>
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg w-full max-w-md">
             <h2 className="text-xl font-bold mb-4">
-              {isEditMode ? "Chỉnh sửa sân bay" : "Tạo sân bay mới"}
+              {isEditMode ? "Edit" : "Create"}
             </h2>
             <form onSubmit={handleSubmit}>
               <div className="mb-4">
@@ -263,13 +317,13 @@ export default function AirportPage() {
                   onClick={handleCloseModal}
                   className="bg-gray-300 text-black px-4 py-2 rounded hover:bg-gray-400"
                 >
-                  Hủy
+                  Cancel
                 </button>
                 <button
                   type="submit"
                   className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
                 >
-                  {isEditMode ? "Cập nhật" : "Tạo"}
+                  {isEditMode ? "Update" : "Create"}
                 </button>
               </div>
             </form>

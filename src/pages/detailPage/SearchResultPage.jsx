@@ -15,6 +15,7 @@ import { searchTickets } from "../../thunk/ticketThunk";
 import { getAirlines } from "../../thunk/airlineThunk";
 import { getListAirports } from "../../thunk/airportThunk";
 // Styles, images, icons
+import { BiArrowBack } from "react-icons/bi";
 
 const SearchResultsPage = () => {
   //#region Declare Hook
@@ -248,11 +249,18 @@ const SearchResultsPage = () => {
   return (
     <div className="bg-gray-50 min-h-screen">
       <Header />
+      <Button
+        className="text-xs px-2 py-1 w-[100px] ml-[190px] mt-3"
+        onClick={() => navigate("/")}
+      >
+        <BiArrowBack size={20} />
+      </Button>
       <div className="max-w-6xl mx-auto p-4">
         <FlightSearchForm
           defaultData={memoizedSearchParams}
           onSearch={handleSearch}
         />
+
         <h2 className="text-2xl font-bold my-6 text-gray-800">
           Search results
         </h2>

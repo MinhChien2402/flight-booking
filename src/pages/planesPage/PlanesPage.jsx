@@ -1,9 +1,11 @@
 // Libs
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 // Components, Layouts, Pages
 import Header from "../../components/header/Header";
 import Footer from "../../components/footer/Footer";
+import Button from "../../components/button/Button";
 import DataTablePage from "../../components/dataTableAdmin/DataTable";
 // Others
 import {
@@ -13,14 +15,16 @@ import {
   updatePlane,
 } from "../../thunk/planeThunk";
 // Styles, images, icons
+import { BiArrowBack } from "react-icons/bi";
 
 export default function PlanePage() {
   //#region Declare Hook
   const dispatch = useDispatch();
-  const { planes, loading, error } = useSelector((state) => state.plane);
+  const navigate = useNavigate();
   //#endregion Declare Hook
 
   //#region Selector
+  const { planes, loading, error } = useSelector((state) => state.plane);
   //#endregion Selector
 
   //#region Declare State
@@ -33,6 +37,7 @@ export default function PlanePage() {
   });
   const [formError, setFormError] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   //#endregion Declare State
 
   //#region Implement Hook
@@ -156,7 +161,13 @@ export default function PlanePage() {
 
   const columns = ["Id", "Name", "Code", "Additional Code", "Actions"];
 
-  const formattedData = planes.map((plane) => ({
+  const filteredPlanes = planes.filter((plane) =>
+    Object.values(plane).some((val) =>
+      String(val).toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  );
+
+  const formattedData = filteredPlanes.map((plane) => ({
     Id: plane.id,
     Name: plane.name,
     Code: plane.code,
@@ -179,23 +190,36 @@ export default function PlanePage() {
     ),
   }));
 
+  const handleSearchChange = (value) => {
+    setSearchTerm(value);
+  };
   //#endregion Handle Function
 
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
-      <main className="flex-grow">
-        <DataTablePage
-          title="Planes"
-          searchPlaceholder="Search planes..."
-          createButtonLabel="Create Plane"
-          onCreate={handleCreate}
-          columns={columns}
-          data={formattedData}
-          loading={loading}
-          error={error}
-        />
-      </main>
+      <Button
+        className="text-xs px-2 py-1 w-[100px] ml-[130px] mt-3"
+        onClick={() => navigate(-1)}
+      >
+        <BiArrowBack size={20} />
+      </Button>
+      <div className="flex-grow bg-gray-50 px-6 py-10">
+        <div className="max-w-7xl mx-auto">
+          <DataTablePage
+            title="Planes"
+            searchPlaceholder="Search planes..."
+            createButtonLabel="Create Plane"
+            onCreate={handleCreate}
+            columns={columns}
+            data={formattedData}
+            searchTerm={searchTerm}
+            onSearchChange={handleSearchChange}
+            loading={loading}
+            error={error}
+          />
+        </div>
+      </div>
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">

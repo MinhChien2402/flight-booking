@@ -11,13 +11,14 @@ export default function DataTablePage({
   onCreate,
   columns,
   data,
+  searchTerm,
+  onSearchChange,
 }) {
-  const [searchTerm, setSearchTerm] = useState("");
   const [sortAsc, setSortAsc] = useState(true);
 
-  const handleSearchChange = (event) => {
-    setSearchTerm(event.target.value.toLowerCase());
-  };
+  // const handleSearchChange = (event) => {
+  //   setSearchTerm(event.target.value.toLowerCase());
+  // };
 
   const handleSortToggle = () => {
     setSortAsc(!sortAsc);
@@ -26,7 +27,7 @@ export default function DataTablePage({
   const filteredData = data
     .filter((item) =>
       Object.values(item).some((value) =>
-        String(value).toLowerCase().includes(searchTerm)
+        String(value).toLowerCase().includes(searchTerm.toLowerCase())
       )
     )
     .sort((a, b) => {
@@ -37,32 +38,24 @@ export default function DataTablePage({
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">{title}</h1>
+      <div className="flex flex-col items-center justify-center text-center mb-6">
+        <h1 className="text-2xl font-bold mb-4">{title}</h1>
 
-      <div className="flex flex-wrap items-center gap-4 mb-4">
-        <input
-          type="text"
-          placeholder={searchPlaceholder}
-          value={searchTerm}
-          onChange={handleSearchChange}
-          className="border border-gray-300 px-4 py-2 rounded w-full md:w-80"
-        />
-        <button
-          onClick={onCreate}
-          className="bg-black text-white px-4 py-2 rounded hover:bg-gray-800"
-        >
-          {createButtonLabel}
-        </button>
-      </div>
-
-      <div className="mb-4">
-        <select
-          onChange={handleSortToggle}
-          className="border border-gray-300 px-4 py-2 rounded"
-        >
-          <option>Sort by Name (A-Z)</option>
-          <option>Sort by Name (Z-A)</option>
-        </select>
+        <div className="flex flex-wrap items-center justify-between mb-4 w-full">
+          <input
+            type="text"
+            placeholder={searchPlaceholder}
+            value={searchTerm}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="border border-gray-300 px-4 py-2 rounded w-full md:w-80"
+          />
+          <button
+            onClick={onCreate}
+            className="bg-black text-white px-4 py-2 rounded hover:bg-gray-800 mt-2 md:mt-0"
+          >
+            {createButtonLabel}
+          </button>
+        </div>
       </div>
 
       <div className="overflow-auto">
