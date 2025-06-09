@@ -3,8 +3,9 @@ import React, { useCallback, useState } from "react";
 // Components, Layouts, Pages
 // Others
 // Styles, images, icons
+import { BiDownload } from "react-icons/bi";
 
-const BookedTicketsTable = ({ tickets, onAirlineClick }) => {
+const BookedTicketsTable = ({ tickets, onAirlineClick, onDownloadPdf }) => {
   //#region Declare Hook
   const ITEMS_PER_PAGE = 3;
   //#endregion Declare Hook
@@ -45,6 +46,12 @@ const BookedTicketsTable = ({ tickets, onAirlineClick }) => {
     };
   }
 
+  const handleDownloadPdf = (bookingId) => {
+    if (onDownloadPdf) {
+      onDownloadPdf(bookingId);
+    }
+  };
+
   if (!tickets || tickets.length === 0) {
     return null;
   }
@@ -62,6 +69,7 @@ const BookedTicketsTable = ({ tickets, onAirlineClick }) => {
             <th className="px-4 py-3 text-left font-semibold">Arrival</th>
             <th className="px-4 py-3 text-left font-semibold">Duration</th>
             <th className="px-4 py-3 text-left font-semibold">Booked On</th>
+            <th className="px-4 py-3 text-left font-semibold">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -79,6 +87,16 @@ const BookedTicketsTable = ({ tickets, onAirlineClick }) => {
               <td className="px-4 py-3">{ticket.Arrival}</td>
               <td className="px-4 py-3">{ticket.Duration}</td>
               <td className="px-4 py-3">{ticket.BookedOn}</td>
+              <td className="px-4 py-3">
+                <button
+                  className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 flex items-center"
+                  onClick={() => handleDownloadPdf(ticket.BookingId)}
+                  disabled={ticket.BookingId === undefined}
+                >
+                  <BiDownload size={18} />
+                  {/* <span className="ml-1">Download E-Ticket PDF</span> */}
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>

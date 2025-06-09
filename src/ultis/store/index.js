@@ -9,6 +9,7 @@ import userReducer from '../redux/profileSlice';
 import bookingReducer from '../redux/bookingSlice';
 import userBookingReducer from '../redux/userBookingSlice';
 import bookingDetailReducer from '../redux/bookingDetailSlice';
+import pdfReducer from '../redux/pdfSlice';
 
 
 export const store = configureStore({
@@ -23,5 +24,6 @@ export const store = configureStore({
         booking: bookingReducer,
         userBooking: userBookingReducer,
         bookingDetail: bookingDetailReducer,
+        pdf: pdfReducer,
     },
 });

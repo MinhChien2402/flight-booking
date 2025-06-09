@@ -13,7 +13,9 @@ import { getUserBookings } from "../../thunk/userBookingThunk";
 import { getBookingDetail } from "../../thunk/bookingDetailThunk";
 import Button from "../../components/button/Button";
 // Styles, images, icons
-import { BiArrowBack } from "react-icons/bi";
+import { BiArrowBack, BiDownload } from "react-icons/bi";
+import axiosInstance from "../../api/axiosInstance";
+import { downloadBookingPdf } from "../../thunk/pdfThunk";
 
 const BookingsPage = () => {
   //#region Declare Hook
@@ -22,18 +24,23 @@ const BookingsPage = () => {
   //#endregion Declare Hook
 
   //#region Selector
-  // Lấy trạng thái từ userBooking slice
   const {
     bookings,
     loading: bookingsLoading,
     error: bookingsError,
   } = useSelector((state) => state.userBooking);
-  // Lấy trạng thái từ bookingDetail slice
+
   const {
     bookingDetail,
     loading: detailLoading,
     error: detailError,
   } = useSelector((state) => state.bookingDetail);
+
+  const {
+    loading: pdfLoading,
+    error: pdfError,
+    success: pdfSuccess,
+  } = useSelector((state) => state.pdf);
   //#endregion Selector
 
   //#region Declare State
@@ -41,7 +48,6 @@ const BookingsPage = () => {
   //#endregion Declare State
 
   //#region Implement Hook
-  // Gọi API lấy danh sách booking khi component mount
   useEffect(() => {
     dispatch(getUserBookings())
       .unwrap()
@@ -69,7 +75,6 @@ const BookingsPage = () => {
   //#endregion Implement Hook
 
   //#region Handle Function
-  // Xử lý khi bấm vào Airline
   const handleAirlineClick = (bookingId) => {
     if (detailLoading) {
       return;
@@ -80,7 +85,25 @@ const BookingsPage = () => {
         setIsModalOpen(true);
       })
       .catch((error) => {
-        alert(`Không thể lấy chi tiết vé: ${error}`);
+        alert(`Cannot retrieve ticket details: ${error}`);
+      });
+  };
+
+  const handleDownloadPdf = (bookingId) => {
+    if (pdfLoading) {
+      return;
+    }
+    dispatch(downloadBookingPdf(bookingId))
+      .unwrap()
+      .then(() => {
+        if (pdfError) {
+          alert(`Error downloading PDF: ${pdfError}`);
+        } else if (pdfSuccess) {
+          console.log(`PDF downloaded successfully for booking ${bookingId}`);
+        }
+      })
+      .catch((error) => {
+        alert(`Error downloading PDF: ${error}`);
       });
   };
 
@@ -90,7 +113,6 @@ const BookingsPage = () => {
   };
   //#endregion Handle Function
 
-  // Ánh xạ dữ liệu bookings sang định dạng mà BookedTicketsTable mong đợi
   const mappedBookings = useMemo(() => {
     return bookings.map((booking) => ({
       BookingId: booking.bookingId,
@@ -103,7 +125,7 @@ const BookingsPage = () => {
       BookedOn: booking.bookedOn,
       TotalPrice: booking.totalPrice || booking.TotalPrice,
     }));
-  }, [bookings]); // Chỉ ánh xạ lại khi bookings thay đổi
+  }, [bookings]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -137,7 +159,7 @@ const BookingsPage = () => {
             !bookingsError &&
             (!bookings || bookings.length === 0) && (
               <p className="text-gray-600">
-                You do not have any tickets or non -download data.
+                You do not have any tickets or non-download data.
               </p>
             )}
           {!bookingsLoading &&
@@ -147,6 +169,7 @@ const BookingsPage = () => {
               <BookedTicketsTable
                 tickets={mappedBookings}
                 onAirlineClick={handleAirlineClick}
+                onDownloadPdf={handleDownloadPdf} // Thêm prop để xử lý tải PDF
               />
             )}
         </div>
