@@ -1,6 +1,7 @@
 // Libs
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 // Components, Layouts, Pages
 import Header from "../../components/header/Header";
 import Footer from "../../components/footer/Footer";
@@ -16,6 +17,7 @@ import {
 import ModalAirline from "../../components/modalAirline/ModalAirline";
 // Styles, images, icons
 import { BiArrowBack } from "react-icons/bi";
+import "react-toastify/dist/ReactToastify.css";
 
 const AirlinesPage = () => {
   //#region Declare Hook
@@ -47,8 +49,10 @@ const AirlinesPage = () => {
     try {
       await dispatch(createAirline(airlineData)).unwrap();
       dispatch(getAirlines());
+      toast.success("Airline created successfully!"); // Hiển thị toast khi tạo thành công
     } catch (error) {
       console.error("Error creating airline:", error);
+      toast.error("Failed to create airline."); // Hiển thị toast lỗi nếu có
     }
   };
 
@@ -56,8 +60,10 @@ const AirlinesPage = () => {
     try {
       await dispatch(updateAirline(updatedAirline)).unwrap();
       dispatch(getAirlines());
+      toast.success("Airline updated successfully!"); // Hiển thị toast khi cập nhật thành công
     } catch (error) {
       console.error("Error updating airline:", error);
+      toast.error("Failed to update airline."); // Hiển thị toast lỗi nếu có
     }
   };
 
@@ -66,8 +72,10 @@ const AirlinesPage = () => {
       try {
         await dispatch(deleteAirline(id)).unwrap();
         dispatch(getAirlines());
+        toast.success("Airline deleted successfully!"); // Hiển thị toast khi xóa thành công
       } catch (error) {
         console.error("Error deleting airline:", error);
+        toast.error("Failed to delete airline."); // Hiển thị toast lỗi nếu có
       }
     }
   };

@@ -1,5 +1,5 @@
 // Libs
-import React, { useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 // Components, Layouts, Pages
 // Others
 // Styles, images, icons
@@ -9,10 +9,9 @@ const BookedTicketsTable = ({ tickets, onAirlineClick, onDownloadPdf }) => {
   //#region Declare Hook
   const ITEMS_PER_PAGE = 3;
   //#endregion Declare Hook
-
   //#region Declare State
   const [currentPage, setCurrentPage] = useState(1);
-  //#endregion Declare State
+  //#region Declare State
 
   //#region Handle Function
   const totalPages = Math.ceil(tickets.length / ITEMS_PER_PAGE);
@@ -30,7 +29,7 @@ const BookedTicketsTable = ({ tickets, onAirlineClick, onDownloadPdf }) => {
   const debouncedOnAirlineClick = useCallback(
     debounce((bookingId) => {
       onAirlineClick(bookingId);
-    }, 500), // Chờ 500ms giữa các lần gọi
+    }, 500),
     [onAirlineClick]
   );
 
@@ -50,6 +49,14 @@ const BookedTicketsTable = ({ tickets, onAirlineClick, onDownloadPdf }) => {
     if (onDownloadPdf) {
       onDownloadPdf(bookingId);
     }
+  };
+
+  // Hàm trích xuất phần ngày từ chuỗi ngày giờ
+  const formatDateOnly = (dateString) => {
+    if (!dateString || dateString === "N/A") return "N/A";
+    // Lấy phần ngày từ chuỗi (giả sử định dạng là "DD/MM/YYYY HH:mm")
+    const datePart = dateString.split(" ")[0].replace(/,$/, "");
+    return datePart;
   };
 
   if (!tickets || tickets.length === 0) {
@@ -74,19 +81,26 @@ const BookedTicketsTable = ({ tickets, onAirlineClick, onDownloadPdf }) => {
         </thead>
         <tbody>
           {currentTickets.map((ticket, index) => (
-            <tr key={ticket.BookingId} className="border-b hover:bg-gray-50">
+            <tr
+              key={`${ticket.BookingId}-${index}`} // Sử dụng BookingId kết hợp với index
+              className="border-b hover:bg-gray-50"
+            >
               <td
                 className="px-4 py-3 text-blue-600 hover:underline cursor-pointer"
                 onClick={() => debouncedOnAirlineClick(ticket.BookingId)}
               >
-                {ticket.Airline}
+                {ticket.Airline || "N/A"}
               </td>
-              <td className="px-4 py-3">{ticket.From}</td>
-              <td className="px-4 py-3">{ticket.To}</td>
-              <td className="px-4 py-3">{ticket.Departure}</td>
-              <td className="px-4 py-3">{ticket.Arrival}</td>
-              <td className="px-4 py-3">{ticket.Duration}</td>
-              <td className="px-4 py-3">{ticket.BookedOn}</td>
+              <td className="px-4 py-3">{ticket.From || "N/A"}</td>
+              <td className="px-4 py-3">{ticket.To || "N/A"}</td>
+              <td className="px-4 py-3">
+                {formatDateOnly(ticket.Departure) || "N/A"}
+              </td>
+              <td className="px-4 py-3">
+                {formatDateOnly(ticket.Arrival) || "N/A"}
+              </td>
+              <td className="px-4 py-3">{ticket.Duration || "N/A"}</td>
+              <td className="px-4 py-3">{ticket.BookedOn || "N/A"}</td>
               <td className="px-4 py-3">
                 <button
                   className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 flex items-center"
@@ -94,7 +108,6 @@ const BookedTicketsTable = ({ tickets, onAirlineClick, onDownloadPdf }) => {
                   disabled={ticket.BookingId === undefined}
                 >
                   <BiDownload size={18} />
-                  {/* <span className="ml-1">Download E-Ticket PDF</span> */}
                 </button>
               </td>
             </tr>

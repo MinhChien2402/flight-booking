@@ -3,13 +3,13 @@ import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
-// Components, Layouts, Pages
+// Components
 import Header from "../../components/header/Header";
 import Footer from "../footer/Footer";
+import Button from "../../components/button/Button";
 // Others
 import { createBooking } from "../../thunk/bookingThunk";
-import Button from "../../components/button/Button";
-// Styles, images, icons
+// Icons
 import { BiArrowBack } from "react-icons/bi";
 
 const ReviewBooking = () => {
@@ -20,8 +20,11 @@ const ReviewBooking = () => {
   const { status, error, currentBooking } = useSelector(
     (state) => state.booking
   );
-  const { flight, searchParams } = location.state || {
-    flight: {},
+
+  // Lấy dữ liệu từ state, hỗ trợ cả one-way và round-trip
+  const { outboundFlight, returnFlight, searchParams } = location.state || {
+    outboundFlight: null,
+    returnFlight: null,
     searchParams: {},
   };
   //#endregion Declare Hook
@@ -53,21 +56,23 @@ const ReviewBooking = () => {
         FirstName: "",
         LastName: "",
         DateOfBirth: "",
-        PassportNumber: "",
         PassportExpiry: "",
       });
     }
     return passengers;
   });
-  // Lấy ngày hiện tại định dạng YYYY-MM-DD
-  const today = new Date().toISOString().split("T")[0];
-  //#endregion Declare State
 
-  // Tính total từ flight.price, xử lý giá trị mặc định
-  const priceValue = flight.price
-    ? parseFloat(flight.price.replace("$", "") || "0")
+  // Lấy ngày hiện tại
+  const today = new Date().toISOString().split("T")[0];
+
+  // Tính total từ outbound và return flight (nếu có)
+  const outboundPrice = outboundFlight?.price
+    ? parseFloat(outboundFlight.price.replace("$", "") || "0")
     : 0;
-  const total = priceValue.toFixed(2);
+  const returnPrice = returnFlight?.price
+    ? parseFloat(returnFlight.price.replace("$", "") || "0")
+    : 0;
+  const total = (outboundPrice + returnPrice).toFixed(2);
 
   useEffect(() => {
     const isValid = passengerInfo.every(
@@ -86,13 +91,17 @@ const ReviewBooking = () => {
     if (status === "succeeded" && currentBooking) {
       toast.success(currentBooking.message);
       navigate("/thank-you", {
-        state: { bookingId: currentBooking.bookingId },
+        state: {
+          bookingId: currentBooking.bookingId,
+          outboundFlight,
+          returnFlight,
+        },
       });
     } else if (status === "failed" && error) {
       console.error("Lỗi đặt vé:", error);
       toast.error("Không thể xác nhận đặt vé: " + error);
     }
-  }, [status, currentBooking, error, navigate]);
+  }, [status, currentBooking, error, navigate, outboundFlight, returnFlight]);
 
   //#region Handle Function
   const handleChange = (index, e) => {
@@ -110,21 +119,36 @@ const ReviewBooking = () => {
 
   const handleConfirmModal = () => {
     setModalOpen(false);
-    if (!flight.id || flight.id === "unknown") {
-      toast.error("Error: No ticket id. Please try again.");
+    if (!outboundFlight?.id || outboundFlight.id === "unknown") {
+      toast.error("Error: No outbound ticket id. Please try again.");
+      return;
+    }
+    if (
+      searchParams.TripType === "roundTrip" &&
+      (!returnFlight?.id || returnFlight.id === "unknown")
+    ) {
+      toast.error("Error: No return ticket id. Please try again.");
       return;
     }
 
-    const ticketId = parseInt(flight.id, 10);
-    if (isNaN(ticketId)) {
+    const outboundTicketId = parseInt(outboundFlight.id, 10);
+    const returnTicketId = returnFlight ? parseInt(returnFlight.id, 10) : null;
+    if (isNaN(outboundTicketId)) {
       toast.error(
-        "Error: Ticket ID is invalid. Please select the flight again."
+        "Error: Outbound ticket ID is invalid. Please select the flight again."
+      );
+      return;
+    }
+    if (returnFlight && isNaN(returnTicketId)) {
+      toast.error(
+        "Error: Return ticket ID is invalid. Please select the flight again."
       );
       return;
     }
 
     const requestBody = {
-      ticketId: ticketId,
+      outboundTicketId: outboundTicketId,
+      returnTicketId: returnTicketId,
       totalPrice: parseFloat(total),
       passengers: passengerInfo,
     };
@@ -176,28 +200,63 @@ const ReviewBooking = () => {
 
         <div className="border p-4 rounded-md mb-2 bg-gray-100">
           <div className="font-semibold text-lg mb-2">
-            {flight.airline || "N/A"}
+            {outboundFlight?.airline || "N/A"}
           </div>
           <div className="flex justify-between text-sm text-gray-700">
             <div>
-              <div className="font-bold">{flight.departTime || "N/A"}</div>
-              <div>{flight.departDate || "N/A"}</div>
-              <div>{flight.from || "N/A"}</div>
+              <div className="font-bold">
+                {outboundFlight?.departTime || "N/A"}
+              </div>
+              <div>{outboundFlight?.departDate || "N/A"}</div>
+              <div>{outboundFlight?.from || "N/A"}</div>
             </div>
             <div className="flex flex-col items-center justify-center">
-              <div>{flight.duration || "N/A"}</div>
+              <div>{outboundFlight?.duration || "N/A"}</div>
               <div className="text-xs text-gray-500">
-                {flight.stops || "N/A"}
+                {outboundFlight?.stops || "N/A"}
               </div>
               <div>✈️</div>
             </div>
             <div>
-              <div className="font-bold">{flight.arriveTime || "N/A"}</div>
-              <div>{flight.arriveDate || "N/A"}</div>
-              <div>{flight.to || "N/A"}</div>
+              <div className="font-bold">
+                {outboundFlight?.arriveTime || "N/A"}
+              </div>
+              <div>{outboundFlight?.arriveDate || "N/A"}</div>
+              <div>{outboundFlight?.to || "N/A"}</div>
             </div>
           </div>
         </div>
+
+        {returnFlight && (
+          <div className="border p-4 rounded-md mt-4 mb-2 bg-gray-100">
+            <div className="font-semibold text-lg mb-2">
+              {returnFlight?.airline || "N/A"}
+            </div>
+            <div className="flex justify-between text-sm text-gray-700">
+              <div>
+                <div className="font-bold">
+                  {returnFlight?.departTime || "N/A"}
+                </div>
+                <div>{returnFlight?.departDate || "N/A"}</div>
+                <div>{returnFlight?.from || "N/A"}</div>
+              </div>
+              <div className="flex flex-col items-center justify-center">
+                <div>{returnFlight?.duration || "N/A"}</div>
+                <div className="text-xs text-gray-500">
+                  {returnFlight?.stops || "N/A"}
+                </div>
+                <div>✈️</div>
+              </div>
+              <div>
+                <div className="font-bold">
+                  {returnFlight?.arriveTime || "N/A"}
+                </div>
+                <div>{returnFlight?.arriveDate || "N/A"}</div>
+                <div>{returnFlight?.to || "N/A"}</div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="mt-4 text-right text-lg font-semibold text-gray-800">
           Total: ${total}

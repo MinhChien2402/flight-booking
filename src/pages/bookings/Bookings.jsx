@@ -52,7 +52,7 @@ const BookingsPage = () => {
     dispatch(getUserBookings())
       .unwrap()
       .then((payload) => {
-        console.log("API Response:", payload);
+        console.log("API Response:", payload); // Kiểm tra số lượng bookings và tickets
       })
       .catch((error) => {
         console.log("API Error:", error);
@@ -114,17 +114,52 @@ const BookingsPage = () => {
   //#endregion Handle Function
 
   const mappedBookings = useMemo(() => {
-    return bookings.map((booking) => ({
-      BookingId: booking.bookingId,
-      Airline: booking.airline,
-      From: booking.from,
-      To: booking.to,
-      Departure: booking.departure,
-      Arrival: booking.arrival,
-      Duration: booking.duration,
-      BookedOn: booking.bookedOn,
-      TotalPrice: booking.totalPrice || booking.TotalPrice,
-    }));
+    console.log("Raw bookings:", bookings); // Debug dữ liệu thô
+    if (!Array.isArray(bookings)) return [];
+    const result = bookings.flatMap((booking) =>
+      (booking.tickets || []).map((ticket) => {
+        const departureTime = new Date(ticket.departureTime || ""); // Xử lý undefined
+        const arrivalTime = new Date(ticket.arrivalTime || ""); // Xử lý undefined
+        const durationMs = arrivalTime - departureTime;
+        const durationHours = Math.floor(durationMs / (1000 * 60 * 60));
+        const durationMinutes = Math.floor(
+          (durationMs % (1000 * 60 * 60)) / (1000 * 60)
+        );
+        const duration = isNaN(durationMs)
+          ? "N/A"
+          : `${durationHours}h ${durationMinutes}m`;
+
+        console.log(`Mapping ticket for BookingId ${booking.bookingId}:`, {
+          departureTime,
+          arrivalTime,
+          duration,
+        }); // Debug từng ticket
+
+        return {
+          BookingId: booking.bookingId || "N/A",
+          Airline: ticket.airline?.name || "N/A",
+          From: ticket.departureAirport?.name || "N/A",
+          To: ticket.arrivalAirport?.name || "N/A",
+          Departure:
+            departureTime.toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+            }) || "N/A",
+          Arrival:
+            arrivalTime.toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+            }) || "N/A",
+          Duration: duration,
+          BookedOn: booking.bookedOn || "N/A",
+          TotalPrice: booking.totalPrice || 0,
+        };
+      })
+    );
+    console.log("Mapped Bookings Length:", result.length); // Kiểm tra tổng số vé
+    return result;
   }, [bookings]);
 
   return (
@@ -169,7 +204,7 @@ const BookingsPage = () => {
               <BookedTicketsTable
                 tickets={mappedBookings}
                 onAirlineClick={handleAirlineClick}
-                onDownloadPdf={handleDownloadPdf} // Thêm prop để xử lý tải PDF
+                onDownloadPdf={handleDownloadPdf}
               />
             )}
         </div>
