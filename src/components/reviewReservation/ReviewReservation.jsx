@@ -4,21 +4,21 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
 // Components
-import Header from "../../components/header/Header";
+import Header from "../header/Header";
 import Footer from "../footer/Footer";
-import Button from "../../components/button/Button";
+import Button from "../button/Button";
 // Others
-import { createBooking } from "../../thunk/bookingThunk";
+import { createReservation } from "../../thunk/reservationThunk";
 // Icons
 import { BiArrowBack } from "react-icons/bi";
 
-const ReviewBooking = () => {
+const ReviewReservation = () => {
   //#region Declare Hook
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { status, error, currentBooking } = useSelector(
-    (state) => state.booking
+  const { status, error, currentReservation } = useSelector(
+    (state) => state.reservation
   );
 
   // Lấy dữ liệu từ state, hỗ trợ cả one-way và round-trip
@@ -88,20 +88,30 @@ const ReviewBooking = () => {
   }, [passengerInfo]);
 
   useEffect(() => {
-    if (status === "succeeded" && currentBooking) {
-      toast.success(currentBooking.message);
+    if (status === "succeeded" && currentReservation) {
+      toast.success(
+        currentReservation.message || "Reservation confirmed successfully!"
+      );
       navigate("/thank-you", {
         state: {
-          bookingId: currentBooking.bookingId,
+          reservationId: currentReservation.Id || currentReservation.id, // Đảm bảo lấy đúng ID
           outboundFlight,
           returnFlight,
         },
       });
     } else if (status === "failed" && error) {
       console.error("Lỗi đặt vé:", error);
-      toast.error("Không thể xác nhận đặt vé: " + error);
+      toast.error("Không thể xác nhận đặt chỗ: " + (error.message || error));
     }
-  }, [status, currentBooking, error, navigate, outboundFlight, returnFlight]);
+  }, [
+    status,
+    currentReservation,
+    error,
+    navigate,
+    outboundFlight,
+    returnFlight,
+  ]);
+  //#endregion Implement Hook
 
   //#region Handle Function
   const handleChange = (index, e) => {
@@ -153,7 +163,7 @@ const ReviewBooking = () => {
       passengers: passengerInfo,
     };
 
-    dispatch(createBooking(requestBody));
+    dispatch(createReservation(requestBody));
   };
   //#endregion Handle Function
 
@@ -195,7 +205,7 @@ const ReviewBooking = () => {
 
       <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg p-6 mt-4 mb-12">
         <h1 className="text-2xl font-bold text-pink-600 mb-4">
-          Review Your Booking
+          Review Your Reservation
         </h1>
 
         <div className="border p-4 rounded-md mb-2 bg-gray-100">
@@ -363,7 +373,7 @@ const ReviewBooking = () => {
             className="mt-6 w-full bg-pink-600 hover:bg-pink-700 text-white py-2 rounded-md font-semibold"
             onClick={handleConfirmClick}
           >
-            Confirm Booking
+            Confirm Reservation
           </button>
         )}
       </div>
@@ -372,4 +382,4 @@ const ReviewBooking = () => {
   );
 };
 
-export default ReviewBooking;
+export default ReviewReservation;

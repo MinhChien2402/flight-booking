@@ -1,38 +1,31 @@
 import { createSlice } from "@reduxjs/toolkit";
-import {
-    searchTickets,
-    getListTickets,
-    createTicket,
-    updateTicket,
-    deleteTicket,
-    getPlanesByAirline,
-} from "../../thunk/ticketThunk";
 import { getListAirports } from "../../thunk/airportThunk";
 import { getAirlines } from "../../thunk/airlineThunk";
-import { getListPlanes } from "../../thunk/planeThunk";
+import { getListAircrafts } from "../../thunk/aircraftThunk";
+import { createFlightSchedule, deleteFlightSchedule, getAircraftsByAirline, getFlightSchedule, getListFlightSchedules, searchFlightSchedules, updateFlightSchedule } from "../../thunk/flightScheduleThunk";
 
-const ticketSlice = createSlice({
-    name: "ticket",
+const flightScheduleSlice = createSlice({
+    name: "flightSchedule",
     initialState: {
-        tickets: [],
+        flightSchedules: [],
         outboundTickets: [],
         returnTickets: [],
         airlines: [],
-        planes: [],
+        aircrafts: [], // Thay planes thành aircrafts
         airports: [],
-        planesByAirline: [],
+        aircraftsByAirline: [], // Thay planesByAirline thành aircraftsByAirline
         loading: false,
         error: null,
     },
     reducers: {},
     extraReducers: (builder) => {
         builder
-            .addCase(searchTickets.pending, (state) => {
+            .addCase(searchFlightSchedules.pending, (state) => {
                 state.loading = true;
                 state.error = null;
-                console.log("Search tickets pending...");
+                console.log("Search flight schedules pending...");
             })
-            .addCase(searchTickets.fulfilled, (state, action) => {
+            .addCase(searchFlightSchedules.fulfilled, (state, action) => {
                 state.loading = false;
                 state.outboundTickets = action.payload.OutboundTickets || action.payload.outboundTickets || [];
                 state.returnTickets = action.payload.ReturnTickets || action.payload.returnTickets || [];
@@ -40,66 +33,66 @@ const ticketSlice = createSlice({
                 console.log("Updated outboundTickets:", state.outboundTickets);
                 console.log("Updated returnTickets:", state.returnTickets);
             })
-            .addCase(searchTickets.rejected, (state, action) => {
+            .addCase(searchFlightSchedules.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload || "Lỗi không xác định";
                 state.outboundTickets = [];
                 state.returnTickets = [];
-                console.log("Search tickets rejected - Error:", state.error);
+                console.log("Search flight schedules rejected - Error:", state.error);
             })
-            .addCase(getListTickets.pending, (state) => {
+            .addCase(getListFlightSchedules.pending, (state) => {
                 state.loading = true;
                 state.error = null;
             })
-            .addCase(getListTickets.fulfilled, (state, action) => {
+            .addCase(getListFlightSchedules.fulfilled, (state, action) => {
                 state.loading = false;
-                state.tickets = action.payload || [];
+                state.flightSchedules = action.payload || [];
             })
-            .addCase(getListTickets.rejected, (state, action) => {
+            .addCase(getListFlightSchedules.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
-                state.tickets = [];
+                state.flightSchedules = [];
             })
-            .addCase(createTicket.pending, (state) => {
+            .addCase(createFlightSchedule.pending, (state) => {
                 state.loading = true;
                 state.error = null;
             })
-            .addCase(createTicket.fulfilled, (state, action) => {
+            .addCase(createFlightSchedule.fulfilled, (state, action) => {
                 state.loading = false;
-                state.tickets.push(action.payload);
+                state.flightSchedules.push(action.payload);
             })
-            .addCase(createTicket.rejected, (state, action) => {
+            .addCase(createFlightSchedule.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
             })
-            .addCase(updateTicket.pending, (state) => {
+            .addCase(updateFlightSchedule.pending, (state) => {
                 state.loading = true;
                 state.error = null;
             })
-            .addCase(updateTicket.fulfilled, (state, action) => {
+            .addCase(updateFlightSchedule.fulfilled, (state, action) => {
                 state.loading = false;
-                const index = state.tickets.findIndex(
-                    (ticket) => ticket.id === action.payload.id
+                const index = state.flightSchedules.findIndex(
+                    (fs) => fs.id === action.payload.id
                 );
                 if (index !== -1) {
-                    state.tickets[index] = action.payload;
+                    state.flightSchedules[index] = action.payload;
                 }
             })
-            .addCase(updateTicket.rejected, (state, action) => {
+            .addCase(updateFlightSchedule.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
             })
-            .addCase(deleteTicket.pending, (state) => {
+            .addCase(deleteFlightSchedule.pending, (state) => {
                 state.loading = true;
                 state.error = null;
             })
-            .addCase(deleteTicket.fulfilled, (state, action) => {
+            .addCase(deleteFlightSchedule.fulfilled, (state, action) => {
                 state.loading = false;
-                state.tickets = state.tickets.filter(
-                    (ticket) => ticket.id !== action.payload
+                state.flightSchedules = state.flightSchedules.filter(
+                    (fs) => fs.id !== action.payload
                 );
             })
-            .addCase(deleteTicket.rejected, (state, action) => {
+            .addCase(deleteFlightSchedule.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
             })
@@ -116,18 +109,18 @@ const ticketSlice = createSlice({
                 state.error = action.payload;
                 state.airlines = [];
             })
-            .addCase(getListPlanes.pending, (state) => {
+            .addCase(getListAircrafts.pending, (state) => {
                 state.loading = true;
                 state.error = null;
             })
-            .addCase(getListPlanes.fulfilled, (state, action) => {
+            .addCase(getListAircrafts.fulfilled, (state, action) => {
                 state.loading = false;
-                state.planes = action.payload || [];
+                state.aircrafts = action.payload || [];
             })
-            .addCase(getListPlanes.rejected, (state, action) => {
+            .addCase(getListAircrafts.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
-                state.planes = [];
+                state.aircrafts = [];
             })
             .addCase(getListAirports.pending, (state) => {
                 state.loading = true;
@@ -142,20 +135,39 @@ const ticketSlice = createSlice({
                 state.error = action.payload;
                 state.airports = [];
             })
-            .addCase(getPlanesByAirline.pending, (state) => {
+            .addCase(getAircraftsByAirline.pending, (state) => {
                 state.loading = true;
                 state.error = null;
             })
-            .addCase(getPlanesByAirline.fulfilled, (state, action) => {
+            .addCase(getAircraftsByAirline.fulfilled, (state, action) => {
                 state.loading = false;
-                state.planesByAirline = action.payload || [];
+                state.aircraftsByAirline = action.payload || [];
             })
-            .addCase(getPlanesByAirline.rejected, (state, action) => {
+            .addCase(getAircraftsByAirline.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
-                state.planesByAirline = [];
+                state.aircraftsByAirline = [];
+            })
+            .addCase(getFlightSchedule.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(getFlightSchedule.fulfilled, (state, action) => {
+                state.loading = false;
+                const index = state.flightSchedules.findIndex(
+                    (fs) => fs.id === action.payload.id
+                );
+                if (index !== -1) {
+                    state.flightSchedules[index] = action.payload;
+                } else {
+                    state.flightSchedules.push(action.payload);
+                }
+            })
+            .addCase(getFlightSchedule.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload;
             });
     },
 });
 
-export default ticketSlice.reducer;
+export default flightScheduleSlice.reducer;

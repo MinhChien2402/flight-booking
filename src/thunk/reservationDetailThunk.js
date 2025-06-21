@@ -1,16 +1,25 @@
+// Libs
 import { createAsyncThunk } from "@reduxjs/toolkit";
+// Others
 import axiosInstance from "../api/axiosInstance";
 
-export const getBookingDetail = createAsyncThunk(
-    'bookingDetail/getBookingDetail',
-    async (bookingId, { rejectWithValue }) => {
+// Styles, images, icons
+
+export const getReservationDetail = createAsyncThunk(
+    "reservationDetail/getReservationDetail",
+    async (reservationId, { rejectWithValue }) => {
+        //#region Declare Variables
+        //#endregion Declare Variables
+
+        //#region Implement Logic
         try {
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem("token");
             console.log("Token:", token);
             if (!token) {
                 throw new Error("Token không tồn tại. Vui lòng đăng nhập lại.");
             }
-            const response = await axiosInstance.get(`/Booking/${bookingId}`, {
+
+            const response = await axiosInstance.get(`/Reservation/${reservationId}`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                 },
@@ -20,11 +29,14 @@ export const getBookingDetail = createAsyncThunk(
         } catch (error) {
             console.error("API Error:", error.message, error.response?.data);
             if (error.response?.status === 401) {
-                localStorage.removeItem('token');
-                window.location.href = '/login';
+                localStorage.removeItem("token");
+                window.location.href = "/login";
                 return rejectWithValue("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.");
             }
-            return rejectWithValue(error.response?.data?.message || 'Lỗi khi lấy chi tiết vé');
+            return rejectWithValue(
+                error.response?.data?.message || "Lỗi khi lấy chi tiết đặt chỗ"
+            );
         }
+        //#endregion Implement Logic
     }
 );

@@ -1,8 +1,8 @@
 import { createSlice } from "@reduxjs/toolkit";
-import { loginUser, registerUser } from "../../thunk/authThunk";
+import { loginUser, registerUser } from "../../thunk/authenticationThunk"; // Cập nhật đường dẫn
 
 const authSlice = createSlice({
-    name: "auth",
+    name: "authentication", // Đổi từ auth
     initialState: {
         user: JSON.parse(localStorage.getItem("currentUser")) || null,
         isLoggedIn: localStorage.getItem("isLoggedIn") === "true",
@@ -30,6 +30,7 @@ const authSlice = createSlice({
             })
             .addCase(registerUser.fulfilled, (state, action) => {
                 state.loading = false;
+                // Không cập nhật user trực tiếp từ register, chờ login
             })
             .addCase(registerUser.rejected, (state, action) => {
                 state.loading = false;

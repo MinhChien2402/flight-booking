@@ -14,10 +14,10 @@ import {
   getAirlines,
   updateAirline,
 } from "../../thunk/airlineThunk";
-import ModalAirline from "../../components/modalAirline/ModalAirline";
 // Styles, images, icons
 import { BiArrowBack } from "react-icons/bi";
 import "react-toastify/dist/ReactToastify.css";
+import ModalAirlineManagement from "../../components/modalAirline/ModalAirlineManagement";
 
 const AirlinesPage = () => {
   //#region Declare Hook
@@ -29,11 +29,11 @@ const AirlinesPage = () => {
   const { list, loading, error, createLoading, createError } = useSelector(
     (state) => state.airline
   );
+  const { countries } = useSelector((state) => state.country);
   //#endregion Selector
 
   //#region Declare State
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { countries } = useSelector((state) => state.country);
   const [airlineData, setAirlineData] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   //#endregion Declare State
@@ -49,10 +49,10 @@ const AirlinesPage = () => {
     try {
       await dispatch(createAirline(airlineData)).unwrap();
       dispatch(getAirlines());
-      toast.success("Airline created successfully!"); // Hiển thị toast khi tạo thành công
+      toast.success("Airline created successfully!");
     } catch (error) {
       console.error("Error creating airline:", error);
-      toast.error("Failed to create airline."); // Hiển thị toast lỗi nếu có
+      toast.error(`Failed to create airline: ${error.message || error}`);
     }
   };
 
@@ -60,10 +60,10 @@ const AirlinesPage = () => {
     try {
       await dispatch(updateAirline(updatedAirline)).unwrap();
       dispatch(getAirlines());
-      toast.success("Airline updated successfully!"); // Hiển thị toast khi cập nhật thành công
+      toast.success("Airline updated successfully!");
     } catch (error) {
       console.error("Error updating airline:", error);
-      toast.error("Failed to update airline."); // Hiển thị toast lỗi nếu có
+      toast.error(`Failed to update airline: ${error.message || error}`);
     }
   };
 
@@ -72,10 +72,10 @@ const AirlinesPage = () => {
       try {
         await dispatch(deleteAirline(id)).unwrap();
         dispatch(getAirlines());
-        toast.success("Airline deleted successfully!"); // Hiển thị toast khi xóa thành công
+        toast.success("Airline deleted successfully!");
       } catch (error) {
         console.error("Error deleting airline:", error);
-        toast.error("Failed to delete airline."); // Hiển thị toast lỗi nếu có
+        toast.error(`Failed to delete airline: ${error.message || error}`);
       }
     }
   };
@@ -84,7 +84,9 @@ const AirlinesPage = () => {
     (airline) =>
       airline.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       airline.callsign.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      airline.country?.name.toLowerCase().includes(searchTerm.toLowerCase())
+      (airline.country?.name || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase())
   );
   //#endregion Handle Function
 
@@ -107,12 +109,14 @@ const AirlinesPage = () => {
               type="text"
               placeholder="Search airlines..."
               className="border p-2 rounded w-1/2"
-              value={searchTerm || ""}
+              value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              disabled={loading || createLoading}
             />
             <button
               className="bg-black text-white px-4 py-2 rounded"
               onClick={() => setIsModalOpen(true)}
+              disabled={loading || createLoading}
             >
               Create Airline
             </button>
@@ -169,19 +173,21 @@ const AirlinesPage = () => {
                       >
                         {airline.status}
                       </td>
-                      <td className="py-2 border-b ">
+                      <td className="py-2 border-b">
                         <button
                           className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded mr-2"
                           onClick={() => {
                             setAirlineData(airline);
                             setIsModalOpen(true);
                           }}
+                          disabled={loading}
                         >
                           Edit
                         </button>
                         <button
                           className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
                           onClick={() => handleDelete(airline.id)}
+                          disabled={loading}
                         >
                           Delete
                         </button>
@@ -195,7 +201,7 @@ const AirlinesPage = () => {
         </div>
       </div>
 
-      <ModalAirline
+      <ModalAirlineManagement
         isOpen={isModalOpen}
         onClose={() => {
           setIsModalOpen(false);
@@ -204,7 +210,6 @@ const AirlinesPage = () => {
         onCreate={handleCreateAirline}
         countries={countries}
         airlineData={airlineData}
-        onUpdate={handleUpdateAirline}
       />
       <Footer />
     </div>

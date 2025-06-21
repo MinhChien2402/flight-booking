@@ -3,50 +3,61 @@ import axiosInstance from "../api/axiosInstance";
 
 export const getListCountries = createAsyncThunk(
     "country/getListCountries",
-    async (_, thunkAPI) => {
+    async (_, { rejectWithValue }) => {
         try {
-            const response = await axiosInstance.get("/countries");
+            const response = await axiosInstance.get("/Country"); // Đổi từ /countries
             return response.data;
         } catch (error) {
-            return thunkAPI.rejectWithValue(error.response?.data || error.message);
+            return rejectWithValue(
+                error.response?.data?.message || error.message || "Unknown error"
+            );
         }
     }
 );
 
 export const createCountry = createAsyncThunk(
     "country/createCountry",
-    async (countryData, thunkAPI) => {
+    async (countryData, { rejectWithValue }) => {
         try {
             console.log("Dữ liệu gửi đi trong createCountry:", countryData);
-            const response = await axiosInstance.post("/countries", countryData);
+            const response = await axiosInstance.post("/Country", countryData); // Đổi từ /countries
             return response.data;
         } catch (error) {
-            return thunkAPI.rejectWithValue(error.response?.data || error.message);
+            return rejectWithValue(
+                error.response?.data?.message || error.message || "Failed to create country"
+            );
         }
     }
 );
 
 export const updateCountry = createAsyncThunk(
     "country/updateCountry",
-    async ({ id, countryData }, thunkAPI) => {
+    async ({ id, countryData }, { rejectWithValue }) => {
         try {
-            console.log("Dữ liệu gửi đi trong updateCountry:", { url: `/countries/${id}`, data: countryData });
-            const response = await axiosInstance.put(`/countries/${id}`, countryData);
+            console.log("Dữ liệu gửi đi trong updateCountry:", {
+                url: `/Country/${id}`,
+                data: countryData,
+            });
+            const response = await axiosInstance.put(`/Country/${id}`, countryData); // Đổi từ /countries
             return response.data;
         } catch (error) {
-            return thunkAPI.rejectWithValue(error.response?.data || error.message);
+            return rejectWithValue(
+                error.response?.data?.message || error.message || "Failed to update country"
+            );
         }
     }
 );
 
 export const deleteCountry = createAsyncThunk(
     "country/deleteCountry",
-    async (id, thunkAPI) => {
+    async (id, { rejectWithValue }) => {
         try {
-            await axiosInstance.delete(`/countries/${id}`);
+            await axiosInstance.delete(`/Country/${id}`); // Đổi từ /countries
             return id;
         } catch (error) {
-            return thunkAPI.rejectWithValue(error.response?.data || error.message);
+            return rejectWithValue(
+                error.response?.data?.message || error.message || "Failed to delete country"
+            );
         }
     }
 );

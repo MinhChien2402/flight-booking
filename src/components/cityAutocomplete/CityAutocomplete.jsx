@@ -1,7 +1,10 @@
 // Libs
 import React, { useState, useEffect } from "react";
-import { useSelector } from "react-redux";
-// Components, Layouts, Pages
+import { useSelector, useDispatch } from "react-redux";
+
+// Thunks
+import { getListAirports } from "../../thunk/airportThunk";
+
 // Others
 // Styles, images, icons
 
@@ -11,61 +14,84 @@ const CityAutocomplete = ({
   placeholder,
   label,
 }) => {
+  //#region Declare Hook
+  const dispatch = useDispatch();
+  //#endregion Declare Hook
+
+  //#region Selector
   const {
-    data = [],
+    data: airports = [],
     loading,
     error,
   } = useSelector(
-    (state) => state.airports || { data: [], loading: false, error: null }
+    (state) => state.airport || { data: [], loading: false, error: null }
   );
+  //#endregion Selector
+
+  //#region Declare State
   const [filteredAirports, setFilteredAirports] = useState([]);
   const [inputValue, setInputValue] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
+  const [initialLoad, setInitialLoad] = useState(true); // Để kiểm soát khởi tạo lần đầu
+  //#endregion Declare State
 
-  // Đồng bộ giá trị ban đầu từ props (defaultData)
+  //#region Implement Hook
   useEffect(() => {
     console.log(
       "CityAutocomplete useEffect - propValue:",
       propValue,
-      "data:",
-      data
+      "data length:",
+      airports.length,
+      "loading:",
+      loading,
+      "error:",
+      error,
+      "airports data:",
+      airports.map((a) => ({ id: a.id, name: a.name }))
     );
-    if (propValue && data.length > 0 && !inputValue) {
-      // Chỉ đồng bộ khi inputValue trống
-      const parsedValue = parseInt(propValue);
-      if (!isNaN(parsedValue)) {
-        const selectedAirport = data.find(
-          (airport) => parseInt(airport.id) === parsedValue
+    // Fetch airports nếu chưa có dữ liệu
+    if (airports.length === 0 && !loading && !error) {
+      dispatch(getListAirports());
+    }
+
+    // Chỉ xử lý propValue khi airports có dữ liệu và là lần tải đầu tiên
+    if (initialLoad && propValue && airports.length > 0) {
+      const parsedValue = propValue ? propValue.toString() : "";
+      if (parsedValue && !isNaN(parseInt(parsedValue))) {
+        const selectedAirport = airports.find(
+          (airport) => airport.id && airport.id.toString() === parsedValue
         );
         if (selectedAirport) {
           const newInputValue = `${selectedAirport.name || "Unknown"} (${
             selectedAirport.code || "N/A"
           })`;
-          console.log("Setting inputValue from useEffect:", newInputValue);
           setInputValue(newInputValue);
         } else {
           console.warn(
             "Airport not found for value:",
             propValue,
             "in data:",
-            data
+            airports
           );
           setInputValue("");
         }
       } else {
         setInputValue("");
       }
+      setInitialLoad(false); // Đánh dấu đã hoàn tất khởi tạo
     }
-  }, [propValue, data]);
+  }, [propValue, airports, loading, error, dispatch, initialLoad]);
 
   const handleInputChange = (e) => {
     const query = e.target.value;
     setInputValue(query);
     setShowDropdown(true);
 
-    if (query && data.length > 0) {
-      const filtered = data.filter((airport) =>
-        (airport.name || "").toLowerCase().includes(query.toLowerCase())
+    if (query && airports.length > 0) {
+      const filtered = airports.filter(
+        (airport) =>
+          (airport.name || "").toLowerCase().includes(query.toLowerCase()) ||
+          (airport.code || "").toLowerCase().includes(query.toLowerCase())
       );
       setFilteredAirports(filtered);
     } else {
@@ -75,19 +101,28 @@ const CityAutocomplete = ({
   };
 
   const handleSelectAirport = (airport) => {
+    if (!airport || !airport.id) {
+      console.warn("Invalid airport data:", airport);
+      return;
+    }
     const displayValue = `${airport.name || "Unknown"} (${
       airport.code || "N/A"
     })`;
     const airportId = airport.id.toString();
     console.log("Selected airport:", { displayValue, airportId });
-    setInputValue(displayValue); // Giữ giá trị hiển thị
+    setInputValue(displayValue);
     onChange(airportId); // Truyền id lên parent
     setShowDropdown(false);
   };
 
-  if (error) {
-    return <p className="text-red-500">Error loading airports: {error}</p>;
-  }
+  const handleBlur = () => {
+    setTimeout(() => setShowDropdown(false), 200); // Đóng dropdown sau khi mất focus
+  };
+  //#endregion Implement Hook
+
+  //#region Handle Function
+  if (loading) return <div>Loading airports...</div>;
+  if (error) return <div>Error loading airports: {error.message || error}</div>;
 
   return (
     <div className="relative">
@@ -97,7 +132,8 @@ const CityAutocomplete = ({
         value={inputValue}
         onChange={handleInputChange}
         onFocus={() => setShowDropdown(true)}
-        placeholder={loading ? "Loading airports..." : placeholder}
+        onBlur={handleBlur}
+        placeholder={placeholder || "Search city..."}
         className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
       {showDropdown && filteredAirports.length > 0 && (
@@ -115,11 +151,12 @@ const CityAutocomplete = ({
       )}
       {showDropdown && filteredAirports.length === 0 && inputValue && (
         <p className="absolute z-50 w-full bg-white border border-gray-300 rounded mt-1 p-2 text-gray-500">
-          {data.length === 0 ? "Loading airports..." : "No airports found."}
+          No airports found.
         </p>
       )}
     </div>
   );
+  //#endregion Handle Function
 };
 
 export default CityAutocomplete;

@@ -1,8 +1,8 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import axiosInstance from "../api/axiosInstance";
 
-export const searchTickets = createAsyncThunk(
-    "ticket/searchTickets",
+export const searchFlightSchedules = createAsyncThunk(
+    "flightSchedule/searchFlightSchedules",
     async (searchParams, { rejectWithValue }) => {
         try {
             const params = {
@@ -16,10 +16,8 @@ export const searchTickets = createAsyncThunk(
                 ReturnDate: searchParams.ReturnDate || null,
             };
 
-            // Gọi API
-            const response = await axiosInstance.post("/tickets/search", params);
+            const response = await axiosInstance.post("/FlightSchedule/search", params);
 
-            // Kiểm tra phản hồi
             if (!response.data) {
                 throw new Error("No data returned from API");
             }
@@ -40,24 +38,24 @@ export const searchTickets = createAsyncThunk(
 );
 
 // Lấy danh sách tất cả vé
-export const getListTickets = createAsyncThunk(
-    "ticket/getListTickets",
-    async (_, thunkAPI) => {
+export const getListFlightSchedules = createAsyncThunk(
+    "flightSchedule/getListFlightSchedules",
+    async (_, { rejectWithValue }) => {
         try {
-            const response = await axiosInstance.get("/tickets");
+            const response = await axiosInstance.get("/FlightSchedule");
             return response.data;
         } catch (error) {
-            return thunkAPI.rejectWithValue(error.response?.data || error.message);
+            return rejectWithValue(error.response?.data || error.message);
         }
     }
 );
 
-// Lấy chi tiết vé theo ID (Thêm mới)
-export const getTicket = createAsyncThunk(
-    "ticket/getTicket",
+// Lấy chi tiết vé theo ID
+export const getFlightSchedule = createAsyncThunk(
+    "flightSchedule/getFlightSchedule",
     async (id, { rejectWithValue }) => {
         try {
-            const response = await axiosInstance.get(`/tickets/${id}`);
+            const response = await axiosInstance.get(`/FlightSchedule/${id}`);
             return response.data;
         } catch (error) {
             return rejectWithValue(error.response?.data || "Lỗi lấy chi tiết vé");
@@ -65,12 +63,12 @@ export const getTicket = createAsyncThunk(
     }
 );
 
-// API mới: Lấy danh sách máy bay theo airlineId
-export const getPlanesByAirline = createAsyncThunk(
-    "plane/getPlanesByAirline",
+// Lấy danh sách máy bay theo airlineId
+export const getAircraftsByAirline = createAsyncThunk(
+    "flightSchedule/getAircraftsByAirline",
     async (airlineId, { rejectWithValue }) => {
         try {
-            const response = await axiosInstance.get(`/tickets/planes/by-airline/${airlineId}`);
+            const response = await axiosInstance.get(`/FlightSchedule/aircrafts/by-airline/${airlineId}`);
             return response.data;
         } catch (error) {
             return rejectWithValue(error.response?.data || error.message);
@@ -79,40 +77,40 @@ export const getPlanesByAirline = createAsyncThunk(
 );
 
 // Tạo vé mới
-export const createTicket = createAsyncThunk(
-    "ticket/createTicket",
-    async (ticketData, thunkAPI) => {
+export const createFlightSchedule = createAsyncThunk(
+    "flightSchedule/createFlightSchedule",
+    async (flightScheduleData, { rejectWithValue }) => {
         try {
-            const response = await axiosInstance.post("/tickets", ticketData);
+            const response = await axiosInstance.post("/FlightSchedule", flightScheduleData);
             return response.data;
         } catch (error) {
-            return thunkAPI.rejectWithValue(error.response?.data || error.message);
+            return rejectWithValue(error.response?.data || error.message);
         }
     }
 );
 
 // Cập nhật vé
-export const updateTicket = createAsyncThunk(
-    "ticket/updateTicket",
-    async ({ id, ticketData }, thunkAPI) => {
+export const updateFlightSchedule = createAsyncThunk(
+    "flightSchedule/updateFlightSchedule",
+    async ({ id, flightScheduleData }, { rejectWithValue }) => {
         try {
-            const response = await axiosInstance.put(`/tickets/${id}`, ticketData);
+            const response = await axiosInstance.put(`/FlightSchedule/${id}`, flightScheduleData);
             return response.data;
         } catch (error) {
-            return thunkAPI.rejectWithValue(error.response?.data || error.message);
+            return rejectWithValue(error.response?.data || error.message);
         }
     }
 );
 
 // Xóa vé
-export const deleteTicket = createAsyncThunk(
-    "ticket/deleteTicket",
-    async (id, thunkAPI) => {
+export const deleteFlightSchedule = createAsyncThunk(
+    "flightSchedule/deleteFlightSchedule",
+    async (id, { rejectWithValue }) => {
         try {
-            await axiosInstance.delete(`/tickets/${id}`);
+            await axiosInstance.delete(`/FlightSchedule/${id}`);
             return id;
         } catch (error) {
-            return thunkAPI.rejectWithValue(error.response?.data || error.message);
+            return rejectWithValue(error.response?.data || error.message);
         }
     }
 );

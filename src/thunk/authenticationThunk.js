@@ -2,23 +2,25 @@ import { createAsyncThunk } from "@reduxjs/toolkit";
 import axiosInstance from "../api/axiosInstance";
 
 export const registerUser = createAsyncThunk(
-    "auth/registerUser",
+    "authentication/registerUser",
     async (userData, { rejectWithValue }) => {
         try {
-            const response = await axiosInstance.post(`Auth/register`, userData);
+            const response = await axiosInstance.post("/Authentication/register", userData); // Đổi từ /Auth/register
             return response.data;
         } catch (error) {
-            return rejectWithValue(error.response.data.message || "Registration failed");
+            return rejectWithValue(
+                error.response?.data?.message || "Registration failed"
+            );
         }
     }
 );
 
 // Thunk cho đăng nhập
 export const loginUser = createAsyncThunk(
-    "auth/loginUser",
+    "authentication/loginUser",
     async (userData, { rejectWithValue }) => {
         try {
-            const response = await axiosInstance.post(`Auth/login`, userData);
+            const response = await axiosInstance.post("/Authentication/login", userData); // Đổi từ /Auth/login
             // Lưu token vào localStorage
             localStorage.setItem("token", response.data.token);
             localStorage.setItem("isLoggedIn", "true");
@@ -28,7 +30,9 @@ export const loginUser = createAsyncThunk(
             localStorage.setItem("currentUser", JSON.stringify(safeUser));
             return response.data;
         } catch (error) {
-            return rejectWithValue(error.response.data.message || "Login failed");
+            return rejectWithValue(
+                error.response?.data?.message || "Login failed"
+            );
         }
     }
 );

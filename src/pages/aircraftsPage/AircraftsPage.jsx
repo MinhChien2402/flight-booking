@@ -1,30 +1,34 @@
 // Libs
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
+import { toast } from "react-toastify";
 // Components, Layouts, Pages
+import DataTablePage from "../../components/dataTableAdmin/DataTable";
+import Button from "../../components/button/Button";
+// Others
 import Header from "../../components/header/Header";
 import Footer from "../../components/footer/Footer";
-import Button from "../../components/button/Button";
-import DataTablePage from "../../components/dataTableAdmin/DataTable";
-// Others
+import { useDispatch, useSelector } from "react-redux";
 import {
-  createPlane,
-  deletePlane,
-  getListPlanes,
-  updatePlane,
-} from "../../thunk/planeThunk";
+  createAircraft,
+  deleteAircraft,
+  getListAircrafts,
+  updateAircraft,
+} from "../../thunk/aircraftThunk"; // Đổi từ planeThunk
 // Styles, images, icons
 import { BiArrowBack } from "react-icons/bi";
 
-export default function PlanePage() {
+export default function AircraftsPage() {
   //#region Declare Hook
   const dispatch = useDispatch();
   const navigate = useNavigate();
   //#endregion Declare Hook
 
   //#region Selector
-  const { planes, loading, error } = useSelector((state) => state.plane);
+  const { aircrafts, loading, error } = useSelector(
+    // Đổi từ planes
+    (state) => state.aircraft // Đổi từ plane
+  );
   //#endregion Selector
 
   //#region Declare State
@@ -42,7 +46,7 @@ export default function PlanePage() {
 
   //#region Implement Hook
   useEffect(() => {
-    dispatch(getListPlanes());
+    dispatch(getListAircrafts()); // Đổi từ getListPlanes
   }, [dispatch]);
   //#endregion Implement Hook
 
@@ -67,12 +71,12 @@ export default function PlanePage() {
   };
 
   // Xử lý mở modal chỉnh sửa máy bay
-  const handleEdit = (plane) => {
+  const handleEdit = (aircraft) => {
     setFormData({
-      id: plane.id,
-      name: plane.name || "",
-      code: plane.code || "",
-      additionalCode: plane.additionalCode || "",
+      id: aircraft.id,
+      name: aircraft.name || "",
+      code: aircraft.code || "",
+      additionalCode: aircraft.additionalCode || "",
     });
     setIsEditMode(true);
     setFormError(null);
@@ -81,16 +85,20 @@ export default function PlanePage() {
 
   // Xử lý xóa máy bay
   const handleDelete = async (id) => {
-    try {
-      await dispatch(deletePlane(id)).unwrap();
-      await dispatch(getListPlanes()).unwrap();
-    } catch (error) {
-      console.error("Lỗi xóa máy bay:", error);
-      setFormError(
-        error?.message ||
-          error?.data?.message ||
-          "Không thể xóa máy bay do có hãng hàng không liên kết với máy bay này."
-      );
+    if (window.confirm("Are you sure you want to delete this aircraft?")) {
+      try {
+        await dispatch(deleteAircraft(id)).unwrap(); // Đổi từ deletePlane
+        await dispatch(getListAircrafts()).unwrap(); // Đổi từ getListPlanes
+        toast.success("Aircraft deleted successfully!");
+      } catch (error) {
+        console.error("Lỗi xóa máy bay:", error);
+        setFormError(
+          error?.message ||
+            error?.data?.message ||
+            "Không thể xóa máy bay do có lịch trình bay liên kết với máy bay này."
+        );
+        toast.error("Failed to delete aircraft!");
+      }
     }
   };
 
@@ -99,7 +107,7 @@ export default function PlanePage() {
     e.preventDefault();
     setFormError(null);
 
-    const planeData = {
+    const aircraftData = {
       name: formData.name.trim(),
       code: formData.code.trim().toUpperCase(),
       additionalCode: formData.additionalCode
@@ -107,7 +115,7 @@ export default function PlanePage() {
         : null,
     };
 
-    const validationError = validateFormData(planeData);
+    const validationError = validateFormData(aircraftData);
     if (validationError) {
       setFormError(validationError);
       return;
@@ -115,18 +123,26 @@ export default function PlanePage() {
 
     try {
       if (isEditMode) {
-        await dispatch(updatePlane({ id: formData.id, planeData })).unwrap();
+        await dispatch(
+          updateAircraft({ id: formData.id, aircraftData })
+        ).unwrap(); // Đổi từ updatePlane
       } else {
-        await dispatch(createPlane(planeData)).unwrap();
+        await dispatch(createAircraft(aircraftData)).unwrap(); // Đổi từ createPlane
       }
-      await dispatch(getListPlanes()).unwrap();
+      await dispatch(getListAircrafts()).unwrap(); // Đổi từ getListPlanes
       setIsModalOpen(false);
+      toast.success(
+        isEditMode
+          ? "Aircraft updated successfully!"
+          : "Aircraft created successfully!"
+      );
     } catch (error) {
       const errorMessage =
         error?.message ||
         error?.data?.message ||
         "Đã xảy ra lỗi khi xử lý yêu cầu. Vui lòng kiểm tra dữ liệu và thử lại.";
       setFormError(errorMessage);
+      toast.error(`Failed to ${isEditMode ? "update" : "create"} aircraft!`);
     }
   };
 
@@ -145,10 +161,10 @@ export default function PlanePage() {
       return "The aircraft code must have 4 characters.";
     }
     // Kiểm tra trùng lặp code
-    const isCodeDuplicate = planes.some(
-      (plane) =>
-        plane.code.toUpperCase() === data.code.toUpperCase() &&
-        (isEditMode ? plane.id !== formData.id : true)
+    const isCodeDuplicate = aircrafts.some(
+      (aircraft) =>
+        aircraft.code.toUpperCase() === data.code.toUpperCase() &&
+        (isEditMode ? aircraft.id !== formData.id : true)
     );
     if (isCodeDuplicate) {
       return "The aircraft code has existed. Please choose another code.";
@@ -161,31 +177,35 @@ export default function PlanePage() {
 
   const columns = ["Id", "Name", "Code", "Additional Code", "Actions"];
 
-  const filteredPlanes = planes.filter((plane) =>
-    Object.values(plane).some((val) =>
+  const filteredAircrafts = aircrafts.filter((aircraft) =>
+    Object.values(aircraft).some((val) =>
       String(val).toLowerCase().includes(searchTerm.toLowerCase())
     )
   );
 
-  const formattedData = filteredPlanes.map((plane) => ({
-    Id: plane.id,
-    Name: plane.name,
-    Code: plane.code,
-    "Additional Code": plane.additionalCode || "",
+  const formattedData = filteredAircrafts.map((aircraft) => ({
+    Id: aircraft.id,
+    Name: aircraft.name,
+    Code: aircraft.code,
+    "Additional Code": aircraft.additionalCode || "",
     Actions: (
       <div className="flex gap-2">
-        <button
-          onClick={() => handleEdit(plane)}
-          className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+        <Button
+          primary
+          className="px-3 py-1 rounded"
+          onClick={() => handleEdit(aircraft)}
+          disabled={loading}
         >
           Edit
-        </button>
-        <button
-          onClick={() => handleDelete(plane.id)}
-          className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
+        </Button>
+        <Button
+          danger
+          className="px-3 py-1 rounded"
+          onClick={() => handleDelete(aircraft.id)}
+          disabled={loading}
         >
           Delete
-        </button>
+        </Button>
       </div>
     ),
   }));
@@ -207,9 +227,9 @@ export default function PlanePage() {
       <div className="flex-grow bg-gray-50 px-6 py-10">
         <div className="max-w-7xl mx-auto">
           <DataTablePage
-            title="Planes"
-            searchPlaceholder="Search planes..."
-            createButtonLabel="Create Plane"
+            title="Aircrafts" // Đổi từ Planes
+            searchPlaceholder="Search aircrafts..."
+            createButtonLabel="Create Aircraft" // Đổi từ Create Plane
             onCreate={handleCreate}
             columns={columns}
             data={formattedData}
@@ -240,6 +260,7 @@ export default function PlanePage() {
                   className="mt-1 p-2 w-full border rounded"
                   required
                   maxLength={100}
+                  disabled={loading}
                 />
               </div>
               <div className="mb-4">
@@ -255,6 +276,7 @@ export default function PlanePage() {
                   required
                   maxLength={4}
                   minLength={4}
+                  disabled={loading}
                 />
               </div>
               <div className="mb-4">
@@ -269,25 +291,29 @@ export default function PlanePage() {
                   className="mt-1 p-2 w-full border rounded"
                   maxLength={3}
                   minLength={3}
+                  disabled={loading}
                 />
               </div>
               {formError && (
                 <div className="mb-4 text-red-500 text-sm">{formError}</div>
               )}
               <div className="flex justify-end gap-2">
-                <button
-                  type="button"
+                <Button
+                  secondary
+                  className="px-4 py-2 rounded"
                   onClick={() => setIsModalOpen(false)}
-                  className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+                  disabled={loading}
                 >
                   Hủy
-                </button>
-                <button
+                </Button>
+                <Button
+                  primary
+                  className="px-4 py-2 rounded"
                   type="submit"
-                  className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                  disabled={loading}
                 >
-                  {isEditMode ? "Cập nhật" : "Tạo"}
-                </button>
+                  {loading ? "Processing..." : isEditMode ? "Cập nhật" : "Tạo"}
+                </Button>
               </div>
             </form>
           </div>

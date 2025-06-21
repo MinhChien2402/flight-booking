@@ -4,7 +4,7 @@ import React from "react";
 // Others
 // Styles, images, icons
 
-const ConfirmModal = ({ isOpen, onCancel, onConfirm }) => {
+const ConfirmReservationModal = ({ isOpen, onCancel, onConfirm }) => {
   //#region Declare Hook
   //#endregion Declare Hook
 
@@ -24,9 +24,9 @@ const ConfirmModal = ({ isOpen, onCancel, onConfirm }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center z-50">
       <div className="bg-white p-6 rounded-md shadow-md max-w-sm w-full">
-        <h2 className="text-lg font-semibold mb-4">Xác nhận đặt vé</h2>
+        <h2 className="text-lg font-semibold mb-4">Xác nhận đặt chỗ</h2>
         <p className="mb-6">
-          Bạn đã chắc chắn với những thông tin bạn đã điền?
+          Bạn đã chắc chắn với những thông tin bạn đã điền cho đặt chỗ?
         </p>
         <div className="flex justify-end gap-4">
           <button
@@ -47,4 +47,4 @@ const ConfirmModal = ({ isOpen, onCancel, onConfirm }) => {
   );
 };
 
-export default ConfirmModal;
+export default ConfirmReservationModal;

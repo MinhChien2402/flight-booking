@@ -1,6 +1,7 @@
 // Libs
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 // Components, Layouts, Pages
 import DataTablePage from "../../components/dataTableAdmin/DataTable";
 import Button from "../../components/button/Button";
@@ -28,7 +29,9 @@ export default function AirportPage() {
     data: airportData,
     loading,
     error,
-  } = useSelector((state) => state.airports);
+  } = useSelector(
+    (state) => state.airport // Đổi từ airports
+  );
   //#endregion Selector
 
   //#region Declare State
@@ -48,11 +51,9 @@ export default function AirportPage() {
   useEffect(() => {
     dispatch(getListAirports());
   }, [dispatch]);
-
   //#endregion Implement Hook
 
   //#region Handle Function
-
   // Mở modal để tạo sân bay mới
   const handleOpenCreateModal = () => {
     setFormData({
@@ -72,7 +73,7 @@ export default function AirportPage() {
       id: airport.id,
       name: airport.name,
       code: airport.code,
-      additionalCode: airport.additionalCode,
+      additionalCode: airport.additionalCode || "",
     });
     setIsEditMode(true);
     setFormError(null);
@@ -111,7 +112,7 @@ export default function AirportPage() {
     const isCodeDuplicate = airportData.some(
       (airport) =>
         airport.code.toUpperCase() === data.code.toUpperCase() &&
-        (isEditMode ? airport.id !== formData.id : true)
+        (isEditMode ? airport.id !== data.id : true)
     );
     if (isCodeDuplicate) {
       return "The airport code has existed. Please choose another code.";
@@ -128,16 +129,14 @@ export default function AirportPage() {
     setFormError(null);
 
     // Chuẩn hóa dữ liệu gửi đi
-    const airportData = {
+    const airportDataToSend = {
       name: formData.name.trim(),
       code: formData.code.trim().toUpperCase(),
-      additionalCode: formData.additionalCode
-        ? formData.additionalCode.trim()
-        : "",
+      additionalCode: formData.additionalCode.trim() || null,
     };
 
     // Kiểm tra dữ liệu
-    const validationError = validateFormData(airportData);
+    const validationError = validateFormData(airportDataToSend);
     if (validationError) {
       setFormError(validationError);
       return;
@@ -145,62 +144,41 @@ export default function AirportPage() {
 
     try {
       if (isEditMode) {
-        // Cập nhật sân bay
-
         await dispatch(
-          updateAirport({ id: formData.id, airportData })
+          updateAirport({ id: formData.id, airportData: airportDataToSend })
         ).unwrap();
+        toast.success("Airport updated successfully!");
       } else {
-        // Tạo sân bay mới
-        await dispatch(createAirport(airportData)).unwrap();
+        await dispatch(createAirport(airportDataToSend)).unwrap();
+        toast.success("Airport created successfully!");
       }
-      // Lấy lại danh sách sân bay để làm mới bảng
-      await dispatch(getListAirports()).unwrap();
+      dispatch(getListAirports());
       setIsModalOpen(false); // Đóng modal sau khi thành công
     } catch (error) {
-      // Hiển thị thông báo lỗi chi tiết từ API
       const errorMessage =
         error?.data?.message ||
         error?.title ||
         error?.message ||
         "Đã xảy ra lỗi khi xử lý yêu cầu. Vui lòng kiểm tra dữ liệu và thử lại.";
+      toast.error(errorMessage);
       setFormError(errorMessage);
     }
   };
 
   // Xử lý xóa sân bay
   const handleDelete = async (id) => {
-    try {
-      await dispatch(deleteAirport(id)).unwrap();
-    } catch (error) {
-      console.error("Lỗi xóa sân bay:", error);
+    if (window.confirm("Are you sure you want to delete this airport?")) {
+      try {
+        await dispatch(deleteAirport(id)).unwrap();
+        toast.success("Airport deleted successfully!");
+      } catch (error) {
+        console.error("Lỗi xóa sân bay:", error);
+        toast.error("Failed to delete airport: " + (error.message || error));
+      }
     }
   };
 
   const columns = ["Id", "Name", "Code", "Additional Code", "Actions"];
-
-  // const formattedData = airportData.map((airport) => ({
-  //   Id: airport.id,
-  //   Name: airport.name,
-  //   Code: airport.code,
-  //   "Additional Code": airport.additionalCode,
-  //   Actions: (
-  //     <div className="flex gap-2">
-  //       <button
-  //         onClick={() => handleEdit(airport)}
-  //         className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
-  //       >
-  //         Edit
-  //       </button>
-  //       <button
-  //         onClick={() => handleDelete(airport.id)}
-  //         className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
-  //       >
-  //         Delete
-  //       </button>
-  //     </div>
-  //   ),
-  // }));
 
   const filteredData = airportData
     .filter((airport) => {
@@ -216,21 +194,23 @@ export default function AirportPage() {
       Id: airport.id,
       Name: airport.name,
       Code: airport.code,
-      "Additional Code": airport.additionalCode,
+      "Additional Code": airport.additionalCode || "N/A",
       Actions: (
         <div className="flex gap-2">
-          <button
+          <Button
+            primary
+            className="px-3 py-1 rounded"
             onClick={() => handleEdit(airport)}
-            className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
           >
             Edit
-          </button>
-          <button
+          </Button>
+          <Button
+            danger
+            className="px-3 py-1 rounded"
             onClick={() => handleDelete(airport.id)}
-            className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
           >
             Delete
-          </button>
+          </Button>
         </div>
       ),
     }));
@@ -270,7 +250,7 @@ export default function AirportPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg w-full max-w-md">
             <h2 className="text-xl font-bold mb-4">
-              {isEditMode ? "Edit" : "Create"}
+              {isEditMode ? "Edit Airport" : "Create Airport"}
             </h2>
             <form onSubmit={handleSubmit}>
               <div className="mb-4">
@@ -284,6 +264,7 @@ export default function AirportPage() {
                   onChange={handleInputChange}
                   className="mt-1 p-2 w-full border rounded"
                   required
+                  disabled={loading}
                 />
               </div>
               <div className="mb-4">
@@ -297,6 +278,7 @@ export default function AirportPage() {
                   onChange={handleInputChange}
                   className="mt-1 p-2 w-full border rounded"
                   required
+                  disabled={loading}
                 />
               </div>
               <div className="mb-4">
@@ -309,22 +291,29 @@ export default function AirportPage() {
                   value={formData.additionalCode}
                   onChange={handleInputChange}
                   className="mt-1 p-2 w-full border rounded"
+                  disabled={loading}
                 />
               </div>
+              {formError && (
+                <p className="text-red-600 text-sm mb-4">{formError}</p>
+              )}
               <div className="flex justify-end gap-2">
-                <button
-                  type="button"
+                <Button
+                  secondary
+                  className="px-4 py-2 rounded"
                   onClick={handleCloseModal}
-                  className="bg-gray-300 text-black px-4 py-2 rounded hover:bg-gray-400"
+                  disabled={loading}
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
+                  primary
+                  className="px-4 py-2 rounded"
                   type="submit"
-                  className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                  disabled={loading}
                 >
-                  {isEditMode ? "Update" : "Create"}
-                </button>
+                  {loading ? "Processing..." : isEditMode ? "Update" : "Create"}
+                </Button>
               </div>
             </form>
           </div>

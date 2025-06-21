@@ -1,13 +1,13 @@
 import { createSlice } from "@reduxjs/toolkit";
-import { downloadBookingPdf } from "../../thunk/pdfThunk";
+import { downloadReservationPdf } from "../../thunk/pdfGenerationThunk"; // Cập nhật đường dẫn
 
 const pdfSlice = createSlice({
-    name: 'pdf',
+    name: "pdf",
     initialState: {
         loading: false,
         error: null,
         success: false,
-        bookingId: null,
+        reservationId: null,
     },
     reducers: {
         // Reset trạng thái tải PDF
@@ -15,22 +15,22 @@ const pdfSlice = createSlice({
             state.loading = false;
             state.error = null;
             state.success = false;
-            state.bookingId = null;
+            state.reservationId = null;
         },
     },
     extraReducers: (builder) => {
         builder
-            .addCase(downloadBookingPdf.pending, (state) => {
+            .addCase(downloadReservationPdf.pending, (state) => {
                 state.loading = true;
                 state.error = null;
                 state.success = false;
             })
-            .addCase(downloadBookingPdf.fulfilled, (state, action) => {
+            .addCase(downloadReservationPdf.fulfilled, (state, action) => {
                 state.loading = false;
                 state.success = action.payload.success;
-                state.bookingId = action.payload.bookingId;
+                state.reservationId = action.payload.reservationId;
             })
-            .addCase(downloadBookingPdf.rejected, (state, action) => {
+            .addCase(downloadReservationPdf.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
                 state.success = false;

@@ -10,28 +10,48 @@ const TravellersDropdown = ({ onChange }) => {
 
   //#region Selector
   //#endregion Selector
+
   //#region Declare State
   const [isOpen, setIsOpen] = useState(false);
   const [travellersInfo, setTravellersInfo] = useState({
     adults: 1,
     children: 0,
     seatType: "Economy",
-    displayText: "1 & Economy",
+    displayText: "1 Adult, 0 Children & Economy",
   });
   //#endregion Declare State
 
   //#region Implement Hook
   //#endregion Implement Hook
+
   //#region Handle Function
   const handleTravellersChange = (field, value) => {
-    const updatedInfo = { ...travellersInfo, [field]: value };
+    let updatedInfo = { ...travellersInfo, [field]: value };
     if (field === "adults" || field === "children") {
-      updatedInfo.displayText = `${updatedInfo.adults} Adults, ${updatedInfo.children} Children, ${updatedInfo.seatType}`;
+      updatedInfo = {
+        ...updatedInfo,
+        displayText: `${updatedInfo.adults} Adult${
+          updatedInfo.adults > 1 ? "s" : ""
+        }, ${updatedInfo.children} Child${
+          updatedInfo.children > 1 ? "ren" : ""
+        } & ${updatedInfo.seatType}`,
+      };
     } else if (field === "seatType") {
-      updatedInfo.displayText = `${updatedInfo.adults} Adults, ${updatedInfo.children} Children, ${updatedInfo.seatType}`;
+      updatedInfo = {
+        ...updatedInfo,
+        displayText: `${updatedInfo.adults} Adult${
+          updatedInfo.adults > 1 ? "s" : ""
+        }, ${updatedInfo.children} Child${
+          updatedInfo.children > 1 ? "ren" : ""
+        } & ${value}`,
+      };
     }
     setTravellersInfo(updatedInfo);
-    onChange(updatedInfo);
+    onChange(updatedInfo); // Truyền dữ liệu lên parent
+  };
+
+  const handleBlur = () => {
+    setTimeout(() => setIsOpen(false), 200); // Đóng dropdown sau khi mất focus
   };
   //#endregion Handle Function
 
@@ -41,6 +61,7 @@ const TravellersDropdown = ({ onChange }) => {
       <div
         onClick={() => setIsOpen(!isOpen)}
         className="w-full p-2 border border-gray-300 rounded cursor-pointer"
+        onBlur={handleBlur}
       >
         {travellersInfo.displayText}
       </div>
@@ -53,7 +74,10 @@ const TravellersDropdown = ({ onChange }) => {
               min="1"
               value={travellersInfo.adults}
               onChange={(e) =>
-                handleTravellersChange("adults", parseInt(e.target.value))
+                handleTravellersChange(
+                  "adults",
+                  Math.max(1, parseInt(e.target.value) || 1)
+                )
               }
               className="w-full p-2 border rounded"
             />
@@ -65,7 +89,10 @@ const TravellersDropdown = ({ onChange }) => {
               min="0"
               value={travellersInfo.children}
               onChange={(e) =>
-                handleTravellersChange("children", parseInt(e.target.value))
+                handleTravellersChange(
+                  "children",
+                  Math.max(0, parseInt(e.target.value) || 0)
+                )
               }
               className="w-full p-2 border rounded"
             />

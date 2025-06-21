@@ -5,7 +5,7 @@ import { toast, ToastContainer } from "react-toastify";
 import { useDispatch, useSelector } from "react-redux";
 // Components, Layouts, Pages
 // Others
-import { loginUser } from "../../thunk/authThunk";
+import { loginUser } from "../../thunk/authenticationThunk";
 // Styles, images, icons
 import airplaneImg from "../../assets/airplane-wallpaper.jpg";
 import "react-toastify/dist/ReactToastify.css";
@@ -17,7 +17,7 @@ const LoginPage = () => {
   //#endregion Declare Hook
 
   //#region Selector
-  const { loading, error } = useSelector((state) => state.auth);
+  const { loading, error } = useSelector((state) => state.authentication);
   //#endregion Selector
 
   //#region Declare State
@@ -25,12 +25,18 @@ const LoginPage = () => {
 
   //#region Implement Hook
   //#endregion Implement Hook
+
   //#region Handle Function
   const handleLogin = async (e) => {
     e.preventDefault();
 
-    const email = e.target.email.value;
-    const password = e.target.password.value;
+    const email = e.target.email.value.trim();
+    const password = e.target.password.value.trim();
+
+    if (!email || !password) {
+      toast.error("Please fill in both email and password.");
+      return;
+    }
 
     const userData = {
       email,
@@ -39,10 +45,13 @@ const LoginPage = () => {
 
     try {
       const result = await dispatch(loginUser(userData)).unwrap();
+      localStorage.setItem("isLoggedIn", "true");
+      localStorage.setItem("role", result.user.role);
       toast.success(result.message || "Login successful!");
-      setTimeout(() => navigate("/"), 1000);
+      setTimeout(() => navigate("/search"), 1000);
     } catch (err) {
-      toast.error(error || "Invalid email or password.");
+      console.error("Login error:", err);
+      toast.error(err.message || "Invalid email or password.");
     }
   };
   //#endregion Handle Function
@@ -72,6 +81,7 @@ const LoginPage = () => {
                 type="email"
                 className="w-full px-4 py-2 border rounded-md bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
+                disabled={loading}
               />
             </div>
             <div>
@@ -81,11 +91,12 @@ const LoginPage = () => {
                 type="password"
                 className="w-full px-4 py-2 border rounded-md bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
+                disabled={loading}
               />
             </div>
             <button
               type="submit"
-              className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700"
+              className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition duration-200"
               disabled={loading}
             >
               {loading ? "Logging in..." : "Login"}

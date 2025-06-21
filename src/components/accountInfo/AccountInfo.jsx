@@ -4,7 +4,10 @@ import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
 // Components, Layouts, Pages
 // Others
-import { getUserProfile, updateUserProfile } from "../../thunk/profileThunk";
+import {
+  getUserProfile,
+  updateUserProfile,
+} from "../../thunk/userProfileThunk";
 // Styles, images, icons
 import "react-toastify/dist/ReactToastify.css";
 
@@ -94,7 +97,24 @@ const AccountInfo = () => {
               type: "date",
               max: today,
             },
-          ].map(({ label, name, type, max }) => (
+            { label: "Address", name: "address", type: "text" },
+            {
+              label: "Sex",
+              name: "sex",
+              type: "select",
+              options: [
+                { value: "", label: "Select Sex" },
+                { value: "Male", label: "Male" },
+                { value: "Female", label: "Female" },
+              ],
+            },
+            { label: "Age", name: "age", type: "number" },
+            {
+              label: "Preferred Credit Card",
+              name: "preferredCreditCard",
+              type: "text",
+            },
+          ].map(({ label, name, type, max, options }) => (
             <div
               key={name}
               className="flex flex-col sm:flex-row sm:items-center"
@@ -104,21 +124,43 @@ const AccountInfo = () => {
               </div>
               <div className="flex-1">
                 {isEditing ? (
-                  <input
-                    type={type}
-                    name={name}
-                    value={editedInfo[name] || ""}
-                    onChange={handleChange}
-                    max={max}
-                    className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-purple-400 focus:outline-none"
-                    disabled={loading}
-                  />
+                  type === "select" ? (
+                    <select
+                      name={name}
+                      value={editedInfo[name] || ""}
+                      onChange={handleChange}
+                      className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-purple-400 focus:outline-none"
+                      disabled={loading}
+                    >
+                      {options.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type={type}
+                      name={name}
+                      value={editedInfo[name] || ""}
+                      onChange={handleChange}
+                      max={max}
+                      className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-purple-400 focus:outline-none"
+                      disabled={loading}
+                    />
+                  )
                 ) : (
                   <div>{userInfo[name] || ""}</div>
                 )}
               </div>
             </div>
           ))}
+          <div className="flex flex-col sm:flex-row sm:items-center">
+            <div className="w-36 font-medium text-gray-700 mb-1 sm:mb-0">
+              Sky Miles
+            </div>
+            <div>{userInfo.skyMiles || 0}</div>
+          </div>
         </div>
         <div className="mt-6 flex justify-end space-x-3">
           {isEditing ? (

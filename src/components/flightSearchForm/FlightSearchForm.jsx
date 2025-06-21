@@ -1,21 +1,41 @@
 // Libs
-import React, { useCallback, useState, useEffect } from "react";
+import React, { useCallback, useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
 // Components, Layouts, Pages
 import TravellersDropdown from "../traverllerDropdown/TravellersDropdown";
 import CityAutocomplete from "../cityAutocomplete/CityAutocomplete";
 // Others
+import { searchFlightSchedules } from "../../thunk/flightScheduleThunk";
 // Styles, images, icons
 
 const FlightSearchForm = ({ onSearch = () => {}, defaultData = {} }) => {
   //#region Declare Hook
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   //#endregion Declare Hook
 
   //#region Selector
-  const airports = useSelector((state) => state.airports?.data || []);
+  const {
+    airports = [],
+    loading: airportsLoading,
+    error: airportsError,
+  } = useSelector(
+    (state) => state.airport || { data: [], loading: false, error: null }
+  );
+  const {
+    outboundTickets = [],
+    loading: searchLoading,
+    error: searchError,
+  } = useSelector(
+    (state) =>
+      state.flightSchedule || {
+        outboundTickets: [],
+        loading: false,
+        error: null,
+      }
+  );
   //#endregion Selector
 
   //#region Declare State
@@ -39,10 +59,21 @@ const FlightSearchForm = ({ onSearch = () => {}, defaultData = {} }) => {
     seatType: defaultData.FlightClass || "Economy",
   });
   const [ticketPrice, setTicketPrice] = useState(null);
+  const isInitialMount = useRef(true); // Để tránh re-render không cần thiết khi mount
+  const airportsRef = useRef([]); // Lưu trữ airports cục bộ
   //#endregion Declare State
 
   //#region Implement Hook
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      // Cập nhật airportsRef ngay khi component mount với dữ liệu hiện tại
+      if (airports.length > 0) {
+        airportsRef.current = [...airports];
+      }
+      return; // Bỏ qua lần render đầu tiên
+    }
+
     const formatDefaultDate = (date) => {
       if (!date) return "";
       const parsedDate = new Date(date);
@@ -73,7 +104,17 @@ const FlightSearchForm = ({ onSearch = () => {}, defaultData = {} }) => {
     defaultData.Adults,
     defaultData.Children,
     defaultData.FlightClass,
-  ]);
+  ]); // Loại bỏ airports.length để tránh render liên tục
+
+  // useEffect riêng để cập nhật airportsRef khi airports thay đổi
+  useEffect(() => {
+    if (
+      airports.length > 0 &&
+      JSON.stringify(airportsRef.current) !== JSON.stringify(airports)
+    ) {
+      airportsRef.current = [...airports];
+    }
+  }, [airports]); // Chỉ theo dõi airports để cập nhật ref
 
   useEffect(() => {
     const basePrice = 300; // Đồng bộ với SearchResultsPage
@@ -93,28 +134,10 @@ const FlightSearchForm = ({ onSearch = () => {}, defaultData = {} }) => {
     }
   };
 
-  const handleTravellersChange = useCallback(
-    (info) => {
-      console.log("Travellers info updated:", info);
-      setTravellersInfo(info);
-      const searchParams = {
-        DepartureAirportId: parseInt(departureCity) || 0,
-        ArrivalAirportId: parseInt(destinationCity) || 0,
-        DepartureDate: departureDate ? formatDateForApi(departureDate) : null,
-        TripType: tripType || "oneWay",
-        Adults: info.adults || 1,
-        Children: info.children || 0,
-        FlightClass: info.seatType.toLowerCase() || "economy",
-        ReturnDate:
-          tripType === "roundTrip" && returnDate
-            ? formatDateForApi(returnDate)
-            : null,
-      };
-      console.log("Calling onSearch with params:", searchParams);
-      onSearch(searchParams);
-    },
-    [departureCity, destinationCity, departureDate, returnDate, tripType]
-  );
+  const handleTravellersChange = useCallback((info) => {
+    console.log("Travellers info updated:", info);
+    setTravellersInfo(info);
+  }, []);
 
   const isValidDate = (dateStr) => {
     if (!dateStr) return false;
@@ -123,33 +146,73 @@ const FlightSearchForm = ({ onSearch = () => {}, defaultData = {} }) => {
   };
 
   const validateForm = () => {
-    console.log("Validating form with:", {
-      departureCity,
-      destinationCity,
-      departureDate,
-      returnDate,
-      tripType,
-      travellersInfo,
-      airports,
-    });
+    if (process.env.NODE_ENV === "development") {
+      console.log("Validating form with:", {
+        departureCity,
+        destinationCity,
+        departureDate,
+        returnDate,
+        tripType,
+        travellersInfo,
+        airports: airports.map((a) => ({ id: a.id, name: a.name })),
+        airportsRef: airportsRef.current.map((a) => ({
+          id: a.id,
+          name: a.name,
+        })),
+      });
+    }
 
-    if (airports.length === 0) {
-      toast.error("The airport list has not been completed, please try again!");
+    if (airportsLoading) {
+      toast.warn("Loading airports, please wait...");
+      return false;
+    }
+    if (airportsError) {
+      toast.error(
+        `Error loading airports: ${
+          airportsError.message || airportsError
+        }, please try again later!`
+      );
+      return false;
+    }
+    // Sử dụng airportsRef nếu airports rỗng, đảm bảo dữ liệu không bị mất
+    const effectiveAirports =
+      airports.length > 0 ? airports : airportsRef.current;
+    if (!effectiveAirports || effectiveAirports.length === 0) {
+      if (process.env.NODE_ENV === "development") {
+        console.warn(
+          "Airports is empty or undefined:",
+          airports,
+          "Ref:",
+          airportsRef.current
+        );
+      }
+      toast.error(
+        "The airport list has not been completed, please refresh the page or try again later!"
+      );
       return false;
     }
 
-    if (
-      !departureCity ||
-      !airports.some((a) => a.id.toString() === departureCity)
-    ) {
-      toast.error("Please choose the airport to depart valid!");
+    const departureAirport = effectiveAirports.find(
+      (a) => a.id && a.id.toString() === departureCity
+    );
+    const destinationAirport = effectiveAirports.find(
+      (a) => a.id && a.id.toString() === destinationCity
+    );
+    if (process.env.NODE_ENV === "development") {
+      console.log(
+        "Departure Airport:",
+        departureAirport,
+        "Destination Airport:",
+        destinationAirport
+      );
+    }
+
+    if (!departureCity || !departureAirport) {
+      toast.error("Please choose a valid departure airport!");
       return false;
     }
-    if (
-      !destinationCity ||
-      !airports.some((a) => a.id.toString() === destinationCity)
-    ) {
-      toast.error("Please choose a valid airport!");
+    if (!destinationCity || !destinationAirport) {
+      toast.error("Please choose a valid destination airport!");
       return false;
     }
     if (!departureDate || !isValidDate(departureDate)) {
@@ -164,7 +227,7 @@ const FlightSearchForm = ({ onSearch = () => {}, defaultData = {} }) => {
       tripType === "roundTrip" &&
       new Date(returnDate) < new Date(departureDate)
     ) {
-      toast.error("The day must be after the departure date!");
+      toast.error("The return date must be after the departure date!");
       return false;
     }
     if (travellersInfo.adults + travellersInfo.children <= 0) {
@@ -204,23 +267,35 @@ const FlightSearchForm = ({ onSearch = () => {}, defaultData = {} }) => {
           : null,
     };
 
-    console.log("Final searchParams before sending:", searchParams);
+    if (process.env.NODE_ENV === "development") {
+      console.log("Final searchParams before sending:", searchParams);
+    }
     if (
       !searchParams.DepartureAirportId ||
       !searchParams.ArrivalAirportId ||
-      searchParams.DepartureDate === null
+      !searchParams.DepartureDate
     ) {
-      toast.error("Please fill in mandatory information!");
+      toast.error("Please fill in all mandatory fields!");
       return;
     }
 
-    onSearch(searchParams);
-
-    navigate("/search-results", {
-      state: {
-        searchParams,
-      },
-    });
+    try {
+      const result = await dispatch(
+        searchFlightSchedules(searchParams)
+      ).unwrap();
+      if (process.env.NODE_ENV === "development") {
+        console.log("Search result:", result);
+      }
+      onSearch(searchParams);
+      navigate("/search-results", {
+        state: { searchParams },
+      });
+    } catch (error) {
+      toast.error(
+        `Search failed: ${error.message || "Please try again later"}`
+      );
+      console.error("Search error:", error);
+    }
   };
   //#endregion Handle Function
 
@@ -251,7 +326,7 @@ const FlightSearchForm = ({ onSearch = () => {}, defaultData = {} }) => {
             Return Trip
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6">
+        <form onSubmit={handleSubmit} className="p6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="z-40">
               <CityAutocomplete
@@ -334,11 +409,18 @@ const FlightSearchForm = ({ onSearch = () => {}, defaultData = {} }) => {
             <button
               type="submit"
               className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded transition duration-200"
+              disabled={searchLoading || airportsLoading}
             >
-              Search flights
+              {searchLoading ? "Searching..." : "Search flights"}
             </button>
           </div>
         </form>
+        {searchError && (
+          <p className="text-red-600 text-center mt-2">{searchError}</p>
+        )}
+        {airportsError && (
+          <p className="text-red-600 text-center mt-2">{airportsError}</p>
+        )}
       </div>
     </div>
   );

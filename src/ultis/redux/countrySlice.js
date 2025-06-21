@@ -44,7 +44,9 @@ const countrySlice = createSlice({
             })
             .addCase(updateCountry.fulfilled, (state, action) => {
                 state.loading = false;
-                const index = state.countries.findIndex(country => country.id === action.payload.id);
+                const index = state.countries.findIndex(
+                    (country) => country.id === action.payload.id
+                );
                 if (index !== -1) {
                     state.countries[index] = action.payload;
                 }
@@ -60,7 +62,9 @@ const countrySlice = createSlice({
             })
             .addCase(deleteCountry.fulfilled, (state, action) => {
                 state.loading = false;
-                state.countries = state.countries.filter(country => country.id !== action.payload);
+                state.countries = state.countries.filter(
+                    (country) => country.id !== action.payload
+                );
             })
             .addCase(deleteCountry.rejected, (state, action) => {
                 state.loading = false;

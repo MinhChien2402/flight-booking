@@ -1,6 +1,5 @@
-import { createSlice } from '@reduxjs/toolkit';
-import { getAirlines, createAirline, deleteAirline } from '../../thunk/airlineThunk';  // Import createAirline
-import { updateAirline } from '../../thunk/airlineThunk';
+import { createSlice } from "@reduxjs/toolkit";
+import { getAirlines, createAirline, deleteAirline, updateAirline } from "../../thunk/airlineThunk";
 
 const initialState = {
     list: [],
@@ -10,10 +9,12 @@ const initialState = {
     createError: null,
     updateLoading: false,
     updateError: null,
+    deleteLoading: false, // Thêm trạng thái loading cho delete
+    deleteError: null,   // Thêm trạng thái error cho delete
 };
 
 const airlineSlice = createSlice({
-    name: 'airline',
+    name: "airline",
     initialState,
     reducers: {},
     extraReducers: (builder) => {
@@ -31,7 +32,6 @@ const airlineSlice = createSlice({
                 state.loading = false;
                 state.error = action.payload;
             })
-
             // Create Airline actions
             .addCase(createAirline.pending, (state) => {
                 state.createLoading = true;
@@ -45,7 +45,6 @@ const airlineSlice = createSlice({
                 state.createLoading = false;
                 state.createError = action.payload;
             })
-
             // Delete Airline actions
             .addCase(deleteAirline.pending, (state) => {
                 state.deleteLoading = true;
@@ -53,14 +52,12 @@ const airlineSlice = createSlice({
             })
             .addCase(deleteAirline.fulfilled, (state, action) => {
                 state.deleteLoading = false;
-                // Lọc danh sách để loại bỏ airline bị xóa
                 state.list = state.list.filter((airline) => airline.id !== action.payload);
             })
             .addCase(deleteAirline.rejected, (state, action) => {
                 state.deleteLoading = false;
                 state.deleteError = action.payload;
             })
-
             // Update Airline actions
             .addCase(updateAirline.pending, (state) => {
                 state.updateLoading = true;
@@ -68,13 +65,15 @@ const airlineSlice = createSlice({
             })
             .addCase(updateAirline.fulfilled, (state, action) => {
                 state.updateLoading = false;
-
+                const index = state.list.findIndex((airline) => airline.id === action.payload.id);
+                if (index !== -1) {
+                    state.list[index] = action.payload; // Cập nhật airline trong danh sách
+                }
             })
             .addCase(updateAirline.rejected, (state, action) => {
                 state.updateLoading = false;
                 state.updateError = action.payload;
             });
-
     },
 });
 

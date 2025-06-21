@@ -1,55 +1,59 @@
-import { createAsyncThunk } from '@reduxjs/toolkit';
-import axiosInstance from '../api/axiosInstance';
+import { createAsyncThunk } from "@reduxjs/toolkit";
+import axiosInstance from "../api/axiosInstance";
 
 export const getAirlines = createAsyncThunk(
-    'airline/getAirlines',
-    async (_, thunkAPI) => {
+    "airline/getAirlines",
+    async (_, { rejectWithValue }) => {
         try {
-            const response = await axiosInstance.get('/Airlines');
+            const response = await axiosInstance.get("/Airline"); // Đổi từ /Airlines
             return response.data;
         } catch (error) {
-            return thunkAPI.rejectWithValue(
-                error?.response?.data || 'Unknown error'
+            return rejectWithValue(
+                error?.response?.data?.message || error.message || "Unknown error"
             );
         }
     }
 );
 
 export const createAirline = createAsyncThunk(
-    'airline/createAirline',
-    async (airlineData, thunkAPI) => {
+    "airline/createAirline",
+    async (airlineData, { rejectWithValue }) => {
         try {
-            const response = await axiosInstance.post('/Airlines', airlineData);
+            const response = await axiosInstance.post("/Airline", airlineData); // Đổi từ /Airlines
             return response.data;
         } catch (error) {
-            return thunkAPI.rejectWithValue(error.response ? error.response.data : error.message);
+            console.error("Create Airline Error:", error.response?.data);
+            return rejectWithValue(
+                error.response?.data?.message || error.message || "Failed to create airline"
+            );
         }
     }
 );
 
-
 export const deleteAirline = createAsyncThunk(
-    'airline/deleteAirline',
-    async (id, thunkAPI) => {
+    "airline/deleteAirline",
+    async (id, { rejectWithValue }) => {
         try {
-            await axiosInstance.delete(`/Airlines/${id}`);
-            return id; // Trả về id để dễ dàng xóa trong state
+            await axiosInstance.delete(`/Airline/${id}`); // Đổi từ /Airlines
+            return id;
         } catch (error) {
-            return thunkAPI.rejectWithValue(
-                error?.response?.data || 'Unknown error'
+            return rejectWithValue(
+                error?.response?.data?.message || error.message || "Unknown error"
             );
         }
     }
 );
 
 export const updateAirline = createAsyncThunk(
-    'airline/updateAirline',
+    "airline/updateAirline",
     async (airline, { rejectWithValue }) => {
         try {
-            const response = await axiosInstance.put(`/Airlines/${airline.id}`, airline); // đúng swagger
+            const response = await axiosInstance.put(`/Airline/${airline.id}`, airline); // Đổi từ /Airlines
             return response.data;
         } catch (error) {
-            return rejectWithValue(error.response.data);
+            return rejectWithValue(
+                error.response?.data?.message || error.message || "Failed to update airline"
+            );
         }
     }
 );

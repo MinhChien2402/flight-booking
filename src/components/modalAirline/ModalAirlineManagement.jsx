@@ -1,104 +1,136 @@
+// Libs
 import React, { useEffect, useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+import { toast } from "react-toastify";
+// Components, Layouts, Pages
+// Others
 import { updateAirline } from "../../thunk/airlineThunk";
+// Styles, images, icons
 
-const ModalAirline = ({
+const ModalAirlineManagement = ({
   isOpen,
   onClose,
   onCreate,
   countries,
   airlineData,
-  onUpdate,
 }) => {
+  //#region Declare Hook
   const dispatch = useDispatch();
+  //#endregion Declare Hook
 
+  //#region Selector
+  const { loading, error } = useSelector((state) => state.airline);
+  //#endregion Selector
+
+  //#region Declare State
   const [airlineName, setAirlineName] = useState("");
   const [countryId, setCountryId] = useState("");
   const [callsign, setCallsign] = useState("");
   const [status, setStatus] = useState("Active");
   const [selectedCountryName, setSelectedCountryName] = useState("");
+  //#endregion Declare State
 
+  //#region Implement Hook
   useEffect(() => {
     if (airlineData) {
-      setAirlineName(airlineData.name);
-      setCountryId(airlineData.countryId);
-      setCallsign(airlineData.callsign);
-      setStatus(airlineData.status);
+      setAirlineName(airlineData.name || "");
+      setCountryId(airlineData.countryId?.toString() || "");
+      setCallsign(airlineData.callsign || "");
+      setStatus(airlineData.status || "Active");
+      const selectedCountry = countries.find(
+        (c) => c.id === parseInt(airlineData.countryId)
+      );
+      setSelectedCountryName(selectedCountry ? selectedCountry.name : "");
+    } else {
+      setAirlineName("");
+      setCountryId("");
+      setCallsign("");
+      setStatus("Active");
+      setSelectedCountryName("");
     }
-  }, [airlineData]);
+  }, [airlineData, countries]);
+  //#endregion Implement Hook
+
+  //#region Handle Function
+  const validateForm = () => {
+    if (!airlineName.trim()) {
+      toast.error("Airline name is required.");
+      return false;
+    }
+    if (!countryId) {
+      toast.error("Please select a country.");
+      return false;
+    }
+    if (!callsign.trim()) {
+      toast.error("Callsign is required.");
+      return false;
+    }
+    return true;
+  };
 
   const handleUpdate = async () => {
-    if (airlineName && countryId && callsign) {
-      const selectedCountry = countries.find(
-        (c) => c.id === parseInt(countryId)
-      );
+    if (!validateForm()) return;
 
-      if (!selectedCountry) {
-        console.log("Selected country not found.");
-        return;
-      }
+    const selectedCountry = countries.find((c) => c.id === parseInt(countryId));
+    if (!selectedCountry) {
+      toast.error("Selected country not found.");
+      return;
+    }
 
-      const updatedAirline = {
-        id: airlineData.id,
-        name: airlineName,
-        countryId: parseInt(countryId),
-        callsign: callsign,
-        status: status,
-        airlinePlanes:
-          airlineData.airlinePlanes?.map((plane) => ({
-            airlineId: airlineData.id,
-            planeId: plane.planeId || plane.id,
-          })) || [],
-      };
+    const updatedAirline = {
+      id: airlineData.id,
+      name: airlineName.trim(),
+      countryId: parseInt(countryId),
+      callsign: callsign.trim(),
+      status: status,
+      airlinePlanes:
+        airlineData.airlinePlanes?.map((plane) => ({
+          airlineId: airlineData.id,
+          planeId: plane.planeId || plane.id,
+        })) || [],
+    };
 
-      try {
-        console.log("Updated Airline:", updatedAirline);
-        await onUpdate(updatedAirline);
-        onClose();
-      } catch (error) {
-        console.error("Error updating airline:", error);
-      }
-    } else {
-      console.log("Fields are required.");
+    try {
+      console.log("Updated Airline:", updatedAirline);
+      await dispatch(updateAirline(updatedAirline)).unwrap();
+      toast.success("Airline updated successfully!");
+      onClose();
+    } catch (err) {
+      toast.error(`Error updating airline: ${err.message || err}`);
     }
   };
 
   const handleCreate = () => {
-    if (airlineName && countryId && callsign) {
-      const selectedCountry = countries.find(
-        (c) => c.id === parseInt(countryId)
-      );
+    if (!validateForm()) return;
 
-      if (!selectedCountry) {
-        console.log("Selected country not found.");
-        return;
-      }
-
-      const airlineData = {
-        name: airlineName,
-        countryId: selectedCountry.id,
-        callsign: callsign,
-        status: status,
-        airlinePlanes: [],
-      };
-
-      onCreate(airlineData); // Truyền dữ liệu qua onCreate
-      onClose(); // Đóng modal sau khi tạo
-    } else {
-      console.log("Fields are required.");
+    const selectedCountry = countries.find((c) => c.id === parseInt(countryId));
+    if (!selectedCountry) {
+      toast.error("Selected country not found.");
+      return;
     }
+
+    const newAirline = {
+      name: airlineName.trim(),
+      countryId: parseInt(countryId),
+      callsign: callsign.trim(),
+      status: status,
+      airlinePlanes: [],
+    };
+
+    onCreate(newAirline); // Truyền dữ liệu qua onCreate
+    onClose(); // Đóng modal sau khi tạo
   };
 
   const handleCountryChange = (e) => {
     const selectedId = e.target.value;
     setCountryId(selectedId);
 
-    // Tìm tên quốc gia từ danh sách countries dựa trên ID
     const selectedCountry = countries.find(
       (country) => country.id === parseInt(selectedId)
     );
     setSelectedCountryName(selectedCountry ? selectedCountry.name : "");
   };
+  //#endregion Handle Function
 
   if (!isOpen) return null;
 
@@ -119,6 +151,7 @@ const ModalAirline = ({
             onChange={(e) => setAirlineName(e.target.value)}
             className="border p-2 rounded w-full"
             placeholder="Enter airline name"
+            disabled={loading}
           />
         </div>
 
@@ -128,6 +161,7 @@ const ModalAirline = ({
             value={countryId}
             onChange={handleCountryChange}
             className="border p-2 rounded w-full"
+            disabled={loading}
           >
             <option value="">Select Country</option>
             {countries &&
@@ -147,6 +181,7 @@ const ModalAirline = ({
             onChange={(e) => setCallsign(e.target.value)}
             className="border p-2 rounded w-full"
             placeholder="Enter callsign"
+            disabled={loading}
           />
         </div>
 
@@ -156,6 +191,7 @@ const ModalAirline = ({
             value={status}
             onChange={(e) => setStatus(e.target.value)}
             className="border p-2 rounded w-full"
+            disabled={loading}
           >
             <option value="Active">Active</option>
             <option value="Inactive">Inactive</option>
@@ -166,19 +202,22 @@ const ModalAirline = ({
           <button
             onClick={onClose}
             className="bg-gray-300 text-black px-4 py-2 rounded"
+            disabled={loading}
           >
             Cancel
           </button>
           <button
             onClick={airlineData ? handleUpdate : handleCreate}
             className="bg-black text-white px-4 py-2 rounded"
+            disabled={loading}
           >
-            {airlineData ? "Update" : "Create"}
+            {loading ? "Processing..." : airlineData ? "Update" : "Create"}
           </button>
         </div>
+        {error && <p className="text-red-600 mt-2">{error}</p>}
       </div>
     </div>
   );
 };
 
-export default ModalAirline;
+export default ModalAirlineManagement;

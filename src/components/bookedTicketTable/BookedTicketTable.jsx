@@ -1,22 +1,43 @@
 // Libs
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { toast } from "react-toastify";
 // Components, Layouts, Pages
 // Others
 // Styles, images, icons
 import { BiDownload } from "react-icons/bi";
+import "react-toastify/dist/ReactToastify.css";
+import { getUserReservations } from "../../thunk/userReservationThunk";
 
-const BookedTicketsTable = ({ tickets, onAirlineClick, onDownloadPdf }) => {
+const BookedTicketsTable = () => {
   //#region Declare Hook
+  const dispatch = useDispatch();
   const ITEMS_PER_PAGE = 3;
   //#endregion Declare Hook
+
+  //#region Selector
+  const { reservations, status, error } = useSelector(
+    (state) => state.reservation
+  );
+  //#endregion Selector
+
   //#region Declare State
   const [currentPage, setCurrentPage] = useState(1);
-  //#region Declare State
+  //#endregion Declare State
+
+  //#region Implement Hook
+  useEffect(() => {
+    dispatch(getUserReservations());
+  }, [dispatch]);
+  //#endregion Implement Hook
 
   //#region Handle Function
-  const totalPages = Math.ceil(tickets.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(reservations.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const currentTickets = tickets.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const currentReservations = reservations.slice(
+    startIndex,
+    startIndex + ITEMS_PER_PAGE
+  );
 
   const handlePrev = () => {
     if (currentPage > 1) setCurrentPage((prev) => prev - 1);
@@ -27,10 +48,11 @@ const BookedTicketsTable = ({ tickets, onAirlineClick, onDownloadPdf }) => {
   };
 
   const debouncedOnAirlineClick = useCallback(
-    debounce((bookingId) => {
-      onAirlineClick(bookingId);
+    debounce((reservationId) => {
+      // Implement navigation or detail view logic here
+      console.log("View details for reservation:", reservationId);
     }, 500),
-    [onAirlineClick]
+    []
   );
 
   function debounce(func, wait) {
@@ -45,23 +67,47 @@ const BookedTicketsTable = ({ tickets, onAirlineClick, onDownloadPdf }) => {
     };
   }
 
-  const handleDownloadPdf = (bookingId) => {
-    if (onDownloadPdf) {
-      onDownloadPdf(bookingId);
+  const handleDownloadPdf = async (reservationId) => {
+    try {
+      const response = await fetch(`/api/Reservation/${reservationId}/pdf`, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+      if (!response.ok) throw new Error("Failed to download PDF");
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `reservation_${reservationId}.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      toast.success("PDF downloaded successfully!", {
+        position: "top-right",
+        autoClose: 3000,
+      });
+    } catch (error) {
+      console.error("Error downloading PDF:", error);
+      toast.error(`Lỗi: ${error.message || "Download failure"}`, {
+        position: "top-right",
+        autoClose: 3000,
+      });
     }
   };
 
-  // Hàm trích xuất phần ngày từ chuỗi ngày giờ
   const formatDateOnly = (dateString) => {
     if (!dateString || dateString === "N/A") return "N/A";
-    // Lấy phần ngày từ chuỗi (giả sử định dạng là "DD/MM/YYYY HH:mm")
     const datePart = dateString.split(" ")[0].replace(/,$/, "");
     return datePart;
   };
 
-  if (!tickets || tickets.length === 0) {
-    return null;
-  }
+  if (status === "loading") return <div>Loading...</div>;
+  if (status === "failed")
+    return (
+      <div>
+        Error: {error}
+        <button onClick={() => dispatch(getUserReservations())}>Retry</button>
+      </div>
+    );
   //#endregion Handle Function
 
   return (
@@ -76,42 +122,56 @@ const BookedTicketsTable = ({ tickets, onAirlineClick, onDownloadPdf }) => {
             <th className="px-4 py-3 text-left font-semibold">Arrival</th>
             <th className="px-4 py-3 text-left font-semibold">Duration</th>
             <th className="px-4 py-3 text-left font-semibold">Booked On</th>
+            <th className="px-4 py-3 text-left font-semibold">Status</th>
+            <th className="px-4 py-3 text-left font-semibold">Total Fare</th>
             <th className="px-4 py-3 text-left font-semibold">Actions</th>
           </tr>
         </thead>
         <tbody>
-          {currentTickets.map((ticket, index) => (
-            <tr
-              key={`${ticket.BookingId}-${index}`} // Sử dụng BookingId kết hợp với index
-              className="border-b hover:bg-gray-50"
-            >
-              <td
-                className="px-4 py-3 text-blue-600 hover:underline cursor-pointer"
-                onClick={() => debouncedOnAirlineClick(ticket.BookingId)}
+          {currentReservations.map((res) =>
+            res.tickets.map((ticket, index) => (
+              <tr
+                key={`${res.reservationId}-${index}`}
+                className="border-b hover:bg-gray-50"
               >
-                {ticket.Airline || "N/A"}
-              </td>
-              <td className="px-4 py-3">{ticket.From || "N/A"}</td>
-              <td className="px-4 py-3">{ticket.To || "N/A"}</td>
-              <td className="px-4 py-3">
-                {formatDateOnly(ticket.Departure) || "N/A"}
-              </td>
-              <td className="px-4 py-3">
-                {formatDateOnly(ticket.Arrival) || "N/A"}
-              </td>
-              <td className="px-4 py-3">{ticket.Duration || "N/A"}</td>
-              <td className="px-4 py-3">{ticket.BookedOn || "N/A"}</td>
-              <td className="px-4 py-3">
-                <button
-                  className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 flex items-center"
-                  onClick={() => handleDownloadPdf(ticket.BookingId)}
-                  disabled={ticket.BookingId === undefined}
+                <td
+                  className="px-4 py-3 text-blue-600 hover:underline cursor-pointer"
+                  onClick={() => debouncedOnAirlineClick(res.reservationId)}
                 >
-                  <BiDownload size={18} />
-                </button>
-              </td>
-            </tr>
-          ))}
+                  {ticket.airline?.name || "N/A"}
+                </td>
+                <td className="px-4 py-3">
+                  {ticket.departureAirport?.name || "N/A"}
+                </td>
+                <td className="px-4 py-3">
+                  {ticket.arrivalAirport?.name || "N/A"}
+                </td>
+                <td className="px-4 py-3">
+                  {formatDateOnly(ticket.departureTime) || "N/A"}
+                </td>
+                <td className="px-4 py-3">
+                  {formatDateOnly(ticket.arrivalTime) || "N/A"}
+                </td>
+                <td className="px-4 py-3">{ticket.duration || "N/A"}</td>
+                <td className="px-4 py-3">
+                  {formatDateOnly(res.bookedOn) || "N/A"}
+                </td>
+                <td className="px-4 py-3">{res.status || "N/A"}</td>
+                <td className="px-4 py-3">
+                  ${res.totalPrice?.toFixed(2) || "N/A"}
+                </td>
+                <td className="px-4 py-3">
+                  <button
+                    className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 flex items-center"
+                    onClick={() => handleDownloadPdf(res.reservationId)}
+                    disabled={!res.reservationId}
+                  >
+                    <BiDownload size={18} />
+                  </button>
+                </td>
+              </tr>
+            ))
+          )}
         </tbody>
       </table>
 

@@ -1,5 +1,6 @@
 // Libs
 import React from "react";
+import { useSelector } from "react-redux"; // Thêm để kiểm tra trạng thái
 // Components, Layouts, Pages
 import Header from "../../components/header/Header";
 import FlightSearchForm from "../../components/flightSearchForm/FlightSearchForm";
@@ -13,6 +14,9 @@ const HomePage = () => {
   //#endregion Declare Hook
 
   //#region Selector
+  const { loading: airportsLoading, error: airportsError } = useSelector(
+    (state) => state.airport
+  );
   //#endregion Selector
 
   //#region Declare State
@@ -42,7 +46,15 @@ const HomePage = () => {
           </h1>
         </div>
         <div className="relative z-20 w-full px-4 overflow-visible">
-          <FlightSearchForm />
+          {airportsLoading && (
+            <p className="text-white text-center">Loading airports...</p>
+          )}
+          {airportsError && (
+            <p className="text-red-200 text-center">
+              Error loading airports: {airportsError}
+            </p>
+          )}
+          {!airportsLoading && !airportsError && <FlightSearchForm />}
         </div>
       </div>
 

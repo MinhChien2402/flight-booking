@@ -2,22 +2,22 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
+import { toast } from "react-toastify";
 // Components, Layouts, Pages
 import AccountInfo from "../../components/accountInfo/AccountInfo";
 import Header from "../../components/header/Header";
 import Footer from "../../components/footer/Footer";
-import BookingDetailModal from "../../components/bookingDetailModal/BookingDetailModal";
-import BookedTicketsTable from "../../components/bookedTicketTable/BookedTicketTable";
-// Others
-import { getUserBookings } from "../../thunk/userBookingThunk";
-import { getBookingDetail } from "../../thunk/bookingDetailThunk";
 import Button from "../../components/button/Button";
+import BookedTicketsTable from "../../components/bookedTicketTable/BookedTicketTable";
+import ReservationDetailModal from "../../components/reservationDetailModal/ReservationDetailModal";
+// Others
+import { getUserReservations } from "../../thunk/userReservationThunk";
+import { getReservationDetail } from "../../thunk/reservationDetailThunk";
 // Styles, images, icons
 import { BiArrowBack, BiDownload } from "react-icons/bi";
-import axiosInstance from "../../api/axiosInstance";
-import { downloadBookingPdf } from "../../thunk/pdfThunk";
+import { downloadReservationPdf } from "../../thunk/pdfGenerationThunk";
 
-const BookingsPage = () => {
+const ReservationsPage = () => {
   //#region Declare Hook
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -25,16 +25,16 @@ const BookingsPage = () => {
 
   //#region Selector
   const {
-    bookings,
-    loading: bookingsLoading,
-    error: bookingsError,
-  } = useSelector((state) => state.userBooking);
+    reservations,
+    loading: reservationsLoading,
+    error: reservationsError,
+  } = useSelector((state) => state.userReservation);
 
   const {
-    bookingDetail,
+    reservationDetail,
     loading: detailLoading,
     error: detailError,
-  } = useSelector((state) => state.bookingDetail);
+  } = useSelector((state) => state.reservationDetail);
 
   const {
     loading: pdfLoading,
@@ -49,61 +49,66 @@ const BookingsPage = () => {
 
   //#region Implement Hook
   useEffect(() => {
-    dispatch(getUserBookings())
+    dispatch(getUserReservations())
       .unwrap()
       .then((payload) => {
-        console.log("API Response:", payload); // Kiểm tra số lượng bookings và tickets
+        console.log("API Response:", payload); // Kiểm tra số lượng reservations
       })
       .catch((error) => {
         console.log("API Error:", error);
+        toast.error(`Failed to fetch reservations: ${error.message || error}`);
       });
   }, [dispatch]);
 
   useEffect(() => {
-    console.log("Booking Detail State:", {
-      bookingDetail,
+    console.log("Reservation Detail State:", {
+      reservationDetail,
       detailLoading,
       detailError,
       isModalOpen,
     });
-    if (isModalOpen && bookingDetail && !detailLoading) {
-      console.log("Modal should be visible with data:", bookingDetail);
+    if (isModalOpen && reservationDetail && !detailLoading) {
+      console.log("Modal should be visible with data:", reservationDetail);
     } else if (isModalOpen && detailLoading) {
       console.log("Modal delayed due to loading:", detailLoading);
     }
-  }, [bookingDetail, detailLoading, detailError, isModalOpen]);
+  }, [reservationDetail, detailLoading, detailError, isModalOpen]);
   //#endregion Implement Hook
 
   //#region Handle Function
-  const handleAirlineClick = (bookingId) => {
+  const handleAirlineClick = (reservationId) => {
     if (detailLoading) {
       return;
     }
-    dispatch(getBookingDetail(bookingId))
+    dispatch(getReservationDetail(reservationId))
       .unwrap()
       .then(() => {
         setIsModalOpen(true);
       })
       .catch((error) => {
-        alert(`Cannot retrieve ticket details: ${error}`);
+        toast.error(
+          `Cannot retrieve reservation details: ${error.message || error}`
+        );
       });
   };
 
-  const handleDownloadPdf = (bookingId) => {
+  const handleDownloadPdf = (reservationId) => {
     if (pdfLoading) {
       return;
     }
-    dispatch(downloadBookingPdf(bookingId))
+    dispatch(downloadReservationPdf(reservationId))
       .unwrap()
       .then(() => {
         if (pdfError) {
-          alert(`Error downloading PDF: ${pdfError}`);
+          toast.error(`Error downloading PDF: ${pdfError}`);
         } else if (pdfSuccess) {
-          console.log(`PDF downloaded successfully for booking ${bookingId}`);
+          toast.success(
+            `PDF downloaded successfully for reservation ${reservationId}`
+          );
         }
       })
       .catch((error) => {
-        alert(`Error downloading PDF: ${error}`);
+        toast.error(`Error downloading PDF: ${error.message || error}`);
       });
   };
 
@@ -113,13 +118,13 @@ const BookingsPage = () => {
   };
   //#endregion Handle Function
 
-  const mappedBookings = useMemo(() => {
-    console.log("Raw bookings:", bookings); // Debug dữ liệu thô
-    if (!Array.isArray(bookings)) return [];
-    const result = bookings.flatMap((booking) =>
-      (booking.tickets || []).map((ticket) => {
-        const departureTime = new Date(ticket.departureTime || ""); // Xử lý undefined
-        const arrivalTime = new Date(ticket.arrivalTime || ""); // Xử lý undefined
+  const mappedReservations = useMemo(() => {
+    console.log("Raw reservations:", reservations); // Debug dữ liệu thô
+    if (!Array.isArray(reservations)) return [];
+    const result = reservations.flatMap((reservation) =>
+      (reservation.Tickets || []).map((ticket) => {
+        const departureTime = new Date(ticket.DepartureTime || "");
+        const arrivalTime = new Date(ticket.ArrivalTime || "");
         const durationMs = arrivalTime - departureTime;
         const durationHours = Math.floor(durationMs / (1000 * 60 * 60));
         const durationMinutes = Math.floor(
@@ -129,17 +134,20 @@ const BookingsPage = () => {
           ? "N/A"
           : `${durationHours}h ${durationMinutes}m`;
 
-        console.log(`Mapping ticket for BookingId ${booking.bookingId}:`, {
-          departureTime,
-          arrivalTime,
-          duration,
-        }); // Debug từng ticket
+        console.log(
+          `Mapping ticket for ReservationId ${reservation.ReservationId}:`,
+          {
+            departureTime,
+            arrivalTime,
+            duration,
+          }
+        ); // Debug từng ticket
 
         return {
-          BookingId: booking.bookingId || "N/A",
-          Airline: ticket.airline?.name || "N/A",
-          From: ticket.departureAirport?.name || "N/A",
-          To: ticket.arrivalAirport?.name || "N/A",
+          ReservationId: reservation.ReservationId || "N/A",
+          Airline: ticket.Airline?.Name || "N/A",
+          From: ticket.DepartureAirport?.Name || "N/A",
+          To: ticket.ArrivalAirport?.Name || "N/A",
           Departure:
             departureTime.toLocaleDateString("en-GB", {
               day: "2-digit",
@@ -153,14 +161,14 @@ const BookingsPage = () => {
               year: "numeric",
             }) || "N/A",
           Duration: duration,
-          BookedOn: booking.bookedOn || "N/A",
-          TotalPrice: booking.totalPrice || 0,
+          BookedOn: reservation.BookedOn || "N/A",
+          TotalPrice: reservation.TotalPrice || 0,
         };
       })
     );
-    console.log("Mapped Bookings Length:", result.length); // Kiểm tra tổng số vé
+    console.log("Mapped Reservations Length:", result.length); // Kiểm tra tổng số vé
     return result;
-  }, [bookings]);
+  }, [reservations]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -182,27 +190,27 @@ const BookingsPage = () => {
         {/* Booked Tickets Section */}
         <div className="bg-white shadow-md rounded-2xl p-6">
           <h2 className="text-2xl font-semibold text-blue-600 mb-4">
-            Tickets are booked
+            Reservations are booked
           </h2>
-          {bookingsLoading && <p className="text-gray-600">loading...</p>}
-          {bookingsError && (
+          {reservationsLoading && <p className="text-gray-600">Loading...</p>}
+          {reservationsError && (
             <p className="text-red-600">
-              Error when downloading the ticket list: {bookingsError}
+              Error when downloading the reservation list: {reservationsError}
             </p>
           )}
-          {!bookingsLoading &&
-            !bookingsError &&
-            (!bookings || bookings.length === 0) && (
+          {!reservationsLoading &&
+            !reservationsError &&
+            (!reservations || reservations.length === 0) && (
               <p className="text-gray-600">
-                You do not have any tickets or non-download data.
+                You do not have any reservations or non-downloaded data.
               </p>
             )}
-          {!bookingsLoading &&
-            !bookingsError &&
-            bookings &&
-            bookings.length > 0 && (
+          {!reservationsLoading &&
+            !reservationsError &&
+            reservations &&
+            reservations.length > 0 && (
               <BookedTicketsTable
-                tickets={mappedBookings}
+                tickets={mappedReservations}
                 onAirlineClick={handleAirlineClick}
                 onDownloadPdf={handleDownloadPdf}
               />
@@ -212,15 +220,12 @@ const BookingsPage = () => {
       <Footer />
 
       {/* Modal hiển thị chi tiết vé */}
-      <BookingDetailModal
-        isOpen={isModalOpen}
+      <ReservationDetailModal
+        reservationId={isModalOpen ? reservationDetail?.ReservationId : null} // Sử dụng reservationId thay vì isOpen
         onClose={handleCloseModal}
-        bookingDetail={bookingDetail}
-        loading={detailLoading}
-        error={detailError}
       />
     </div>
   );
 };
 
-export default BookingsPage;
+export default ReservationsPage;

@@ -32,7 +32,7 @@ const Header = () => {
 
   const handleLogoClick = () => {
     if (location.pathname !== "/") {
-      navigate("/");
+      navigate("/search");
     }
   };
   //#endregion Handle Function
@@ -50,10 +50,10 @@ const Header = () => {
       <div className="flex items-center space-x-4">
         {isLoggedIn && userRole === "customer" && (
           <button
-            onClick={() => navigate("/bookings")}
+            onClick={() => navigate("/reservations")} // Đổi từ /bookings
             className="text-black hover:text-blue-700 transition-colors"
           >
-            Booking
+            Reservations
           </button>
         )}
 

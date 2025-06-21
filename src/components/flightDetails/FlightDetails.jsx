@@ -58,9 +58,15 @@ const FlightDetails = ({ flight }) => {
         </div>
       </div>
 
-      {/* Baggage Info */}
+      {/* Baggage Info & Additional Details */}
       <div className="px-4 py-2 text-green-700 font-medium border-t border-gray-300 bg-white text-center">
         Baggage Info: Checked-In, Cabin
+      </div>
+      <div className="px-4 py-2 border-t border-gray-300 bg-white text-center">
+        <div>Duration: {flight.duration || "N/A"}</div>
+        <div>Stops: {flight.stops || "N/A"}</div>
+        <div>Flight Class: {flight.flightClass || "N/A"}</div>
+        <div>Price: {flight.price || "N/A"}</div>
       </div>
     </div>
   );

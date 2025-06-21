@@ -52,6 +52,7 @@ const Footer = () => {
           <ul className="text-sm space-y-2">
             <li className="hover:underline cursor-pointer">Flights</li>
             <li className="hover:underline cursor-pointer">Deals</li>
+            <li className="hover:underline cursor-pointer">Reservations</li>
             <li className="hover:underline cursor-pointer">About Us</li>
             <li className="hover:underline cursor-pointer">Contact</li>
           </ul>
@@ -67,6 +68,7 @@ const Footer = () => {
             </li>
             <li className="hover:underline cursor-pointer">Privacy Policy</li>
             <li className="hover:underline cursor-pointer">Help Center</li>
+            <li className="hover:underline cursor-pointer">Contact Support</li>
           </ul>
         </div>
 

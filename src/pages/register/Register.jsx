@@ -5,7 +5,7 @@ import { toast, ToastContainer } from "react-toastify";
 import { useDispatch, useSelector } from "react-redux";
 // Components, Layouts, Pages
 // Others
-import { registerUser } from "../../thunk/authThunk";
+import { registerUser } from "../../thunk/authenticationThunk"; // Đổi từ authThunk
 // Styles, images, icons
 import airplaneImg from "../../assets/airplane-wallpaper.jpg";
 import "react-toastify/dist/ReactToastify.css";
@@ -17,7 +17,7 @@ const RegisterPage = () => {
   //#endregion Declare Hook
 
   //#region Selector
-  const { loading, error } = useSelector((state) => state.auth);
+  const { loading, error } = useSelector((state) => state.authentication); // Đổi từ auth
   //#endregion Selector
 
   //#region Declare State
@@ -25,27 +25,47 @@ const RegisterPage = () => {
 
   //#region Implement Hook
   //#endregion Implement Hook
+
   //#region Handle Function
   const handleRegister = async (e) => {
     e.preventDefault();
 
-    const fullName = e.target.fullName.value;
-    const email = e.target.email.value;
-    const password = e.target.password.value;
+    const fullName = e.target.fullName.value.trim();
+    const email = e.target.email.value.trim();
+    const password = e.target.password.value.trim();
+    const address = e.target.address.value.trim();
+    const phoneNumber = e.target.phoneNumber.value.trim();
+    const PreferredCreditCard = e.target.PreferredCreditCard.value.trim();
+
+    if (
+      !fullName ||
+      !email ||
+      !password ||
+      !address ||
+      !phoneNumber ||
+      !PreferredCreditCard
+    ) {
+      toast.error("Please fill in all fields.");
+      return;
+    }
 
     const newUser = {
       fullName,
       email,
       password,
-      role: "customer", // Đảm bảo chỉ tạo tài khoản customer
+      role: "customer",
+      address,
+      phoneNumber,
+      PreferredCreditCard,
     };
 
     try {
       const result = await dispatch(registerUser(newUser)).unwrap();
-      toast.success(result.message || "Registered successfully!");
-      setTimeout(() => navigate("/login"), 1000);
+      toast.success(result.message || "Registration successful!");
+      setTimeout(() => navigate("/login"), 1000); // Delay để hiển thị toast
     } catch (err) {
-      toast.error(error || "Registration failed.");
+      console.error("Registration error:", err);
+      toast.error(err.message || "Registration failed.");
     }
   };
   //#endregion Handle Function
@@ -56,7 +76,7 @@ const RegisterPage = () => {
       <div className="w-1/2 hidden md:block">
         <img
           src={airplaneImg}
-          alt="plane"
+          alt="Plane"
           className="h-full w-full object-cover"
         />
       </div>
@@ -68,27 +88,39 @@ const RegisterPage = () => {
             REGISTER
           </h2>
 
-          <input
-            name="fullName"
-            type="text"
-            placeholder="Full Name"
-            className="w-full px-4 py-2 border rounded-md"
-            required
-          />
-          <input
-            name="email"
-            type="email"
-            placeholder="Email"
-            className="w-full px-4 py-2 border rounded-md"
-            required
-          />
-          <input
-            name="password"
-            type="password"
-            placeholder="Password"
-            className="w-full px-4 py-2 border rounded-md"
-            required
-          />
+          <div>
+            <label className="block text-gray-700">Full Name</label>
+            <input
+              name="fullName"
+              type="text"
+              placeholder="Full Name"
+              className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+              disabled={loading}
+            />
+          </div>
+          <div>
+            <label className="block text-gray-700">Email</label>
+            <input
+              name="email"
+              type="email"
+              placeholder="Email"
+              className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+              disabled={loading}
+            />
+          </div>
+          <div>
+            <label className="block text-gray-700">Password</label>
+            <input
+              name="password"
+              type="password"
+              placeholder="Password"
+              className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+              disabled={loading}
+            />
+          </div>
 
           <button
             type="submit"

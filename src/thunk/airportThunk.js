@@ -5,10 +5,12 @@ export const getListAirports = createAsyncThunk(
     "airports/getList",
     async (_, { rejectWithValue }) => {
         try {
-            const response = await axiosInstance.get("/airports");
+            const response = await axiosInstance.get("/Airport"); // Đổi từ /airports
             return response.data;
         } catch (error) {
-            return rejectWithValue(error.response?.data || error.message);
+            return rejectWithValue(
+                error.response?.data?.message || error.message || "Unknown error"
+            );
         }
     }
 );
@@ -18,10 +20,12 @@ export const createAirport = createAsyncThunk(
     "airports/create",
     async (airportData, { rejectWithValue }) => {
         try {
-            const response = await axiosInstance.post("/airports", airportData);
+            const response = await axiosInstance.post("/Airport", airportData); // Đổi từ /airports
             return response.data;
         } catch (error) {
-            return rejectWithValue(error.response?.data || error.message);
+            return rejectWithValue(
+                error.response?.data?.message || error.message || "Failed to create airport"
+            );
         }
     }
 );
@@ -31,10 +35,12 @@ export const updateAirport = createAsyncThunk(
     "airports/update",
     async ({ id, airportData }, { rejectWithValue }) => {
         try {
-            const response = await axiosInstance.put(`/airports/${id}`, airportData);
+            const response = await axiosInstance.put(`/Airport/${id}`, airportData); // Đổi từ /airports
             return response.data;
         } catch (error) {
-            return rejectWithValue(error.response?.data || error.message);
+            return rejectWithValue(
+                error.response?.data?.message || error.message || "Failed to update airport"
+            );
         }
     }
 );
@@ -44,10 +50,12 @@ export const deleteAirport = createAsyncThunk(
     "airports/delete",
     async (id, { rejectWithValue }) => {
         try {
-            await axiosInstance.delete(`/airports/${id}`);
+            await axiosInstance.delete(`/Airport/${id}`); // Đổi từ /airports
             return id;
         } catch (error) {
-            return rejectWithValue(error.response?.data || error.message);
+            return rejectWithValue(
+                error.response?.data?.message || error.message || "Failed to delete airport"
+            );
         }
     }
 );

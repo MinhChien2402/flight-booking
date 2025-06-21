@@ -1,3 +1,4 @@
+
 import { createSlice } from "@reduxjs/toolkit";
 import { createAirport, deleteAirport, getListAirports, updateAirport } from "../../thunk/airportThunk";
 
@@ -19,14 +20,29 @@ const airportSlice = createSlice({
             .addCase(getListAirports.pending, (state) => {
                 state.loading = true;
                 state.error = null;
+                if (process.env.NODE_ENV === "development") {
+                    console.log("getListAirports pending");
+                }
             })
             .addCase(getListAirports.fulfilled, (state, action) => {
                 state.loading = false;
-                state.data = action.payload;
+                // Debug payload từ API
+                if (process.env.NODE_ENV === "development") {
+                    console.log("getListAirports fulfilled, payload:", action.payload);
+                }
+                // Xử lý cả trường hợp payload là { data: [...] } hoặc [...]
+                state.data = Array.isArray(action.payload) ? action.payload : action.payload.data || [];
+                if (process.env.NODE_ENV === "development") {
+                    console.log("Updated state.data:", state.data);
+                }
             })
             .addCase(getListAirports.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
+                state.data = []; // Đảm bảo data không rỗng nếu có lỗi
+                if (process.env.NODE_ENV === "development") {
+                    console.log("getListAirports rejected, error:", action.payload);
+                }
             });
 
         // Create Airport

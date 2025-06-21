@@ -1,8 +1,8 @@
+// Libs
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useSelector, useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
-
 // Components
 import Header from "../../components/header/Header";
 import FlightSearchForm from "../../components/flightSearchForm/FlightSearchForm";
@@ -10,21 +10,21 @@ import Button from "../../components/button/Button";
 import FlightDetails from "../../components/flightDetails/FlightDetails";
 import FlightDetailsHeader from "../../components/flightDetails/FlightDetailsHeader";
 import Footer from "../../components/footer/Footer";
-
+// Others
+import { searchFlightSchedules } from "../../thunk/flightScheduleThunk";
+import { getAirlines } from "../../thunk/airlineThunk";
+import { getListAirports } from "../../thunk/airportThunk";
 // Icons
 import { BiArrowBack } from "react-icons/bi";
 
-// Thunks
-import { searchTickets } from "../../thunk/ticketThunk";
-import { getAirlines } from "../../thunk/airlineThunk";
-import { getListAirports } from "../../thunk/airportThunk";
-
 const SearchResultPage = () => {
+  //#region Declare Hook
   const dispatch = useDispatch();
   const location = useLocation();
   const navigate = useNavigate();
+  //#endregion Declare Hook
 
-  // Selectors
+  //#region Selector
   const {
     list: airlines,
     loading: airlineLoading,
@@ -34,15 +34,16 @@ const SearchResultPage = () => {
     data: airports,
     loading: airportLoading,
     error: airportError,
-  } = useSelector((state) => state.airports);
+  } = useSelector((state) => state.airport);
   const {
-    loading: ticketLoading,
-    error: ticketError,
     outboundTickets,
     returnTickets,
-  } = useSelector((state) => state.ticket);
+    loading: flightScheduleLoading,
+    error: flightScheduleError,
+  } = useSelector((state) => state.flightSchedule);
+  //#endregion Selector
 
-  // State
+  //#region Declare State
   const [searchParams, setSearchParams] = useState(
     location.state?.searchParams || {}
   );
@@ -72,37 +73,51 @@ const SearchResultPage = () => {
   const [openDetails, setOpenDetails] = useState(null);
   const [selectedOutboundTicket, setSelectedOutboundTicket] = useState(null);
   const [selectedReturnTicket, setSelectedReturnTicket] = useState(null);
-  const [loading, setLoading] = useState(false);
+  //#endregion Declare State
 
-  // Utility Function
+  //#region Implement Hook
+  useEffect(() => {
+    dispatch(getAirlines());
+    dispatch(getListAirports());
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (location.state?.searchParams) {
+      setSearchParams(location.state.searchParams);
+      handleSearch(location.state.searchParams);
+    }
+  }, [location.state?.searchParams]);
+  //#endregion Implement Hook
+
+  //#region Utility Function
   const formatFlightData = (ticket) => {
     if (!ticket) return null;
-    const airline = airlines.find((a) => a?.id === ticket?.airline?.id) || {
+    const airline = airlines.find((a) => a?.id === ticket?.AirlineId) || {
       name: "Unknown Airline",
     };
     const departureAirport = airports.find(
-      (a) => a?.id === ticket?.departureAirport?.id
+      (a) => a?.id === ticket?.DepartureAirportId
     ) || { code: "N/A", name: "N/A" };
     const arrivalAirport = airports.find(
-      (a) => a?.id === ticket?.arrivalAirport?.id
+      (a) => a?.id === ticket?.ArrivalAirportId
     ) || { code: "N/A", name: "N/A" };
 
-    const basePrice = ticket?.adultPrice || ticket?.basePrice || 0;
+    const basePrice = ticket?.AdultPrice || ticket?.BasePrice || 0;
     const pricePerAdult = basePrice / memoizedSearchParams.Adults || 300;
     const adultPrice = basePrice;
     const childPrice = pricePerAdult * 0.7 * memoizedSearchParams.Children;
     const totalPrice = adultPrice + childPrice;
 
-    const departureTime = ticket?.departureTime
-      ? new Date(ticket.departureTime)
+    const departureTime = ticket?.DepartureTime
+      ? new Date(ticket.DepartureTime)
       : null;
-    const arrivalTime = ticket?.arrivalTime
-      ? new Date(ticket.arrivalTime)
+    const arrivalTime = ticket?.ArrivalTime
+      ? new Date(ticket.ArrivalTime)
       : null;
 
     return {
-      id: ticket?.id || "unknown",
-      ticketId: ticket?.id || "unknown",
+      id: ticket?.Id || "unknown",
+      ticketId: ticket?.Id || "unknown",
       airline: airline.name || "Unknown Airline",
       departTime: departureTime
         ? departureTime.toLocaleTimeString([], {
@@ -129,53 +144,38 @@ const SearchResultPage = () => {
             )}m`
           : "N/A",
       stops:
-        ticket?.stops !== undefined
-          ? ticket.stops === 0
+        ticket?.Stops !== undefined
+          ? ticket.Stops === 0
             ? "Non-stop"
-            : `${ticket.stops} stop(s)`
+            : `${ticket.Stops} stop(s)`
           : "N/A",
       price: `$${totalPrice.toFixed(2)}`,
       refundable:
-        ticket?.flightClass === "economy" ? "Refundable" : "Non-refunded",
-      availableSeats: ticket?.availableSeats || "N/A",
+        ticket?.FlightClass === "economy" ? "Refundable" : "Non-refunded",
+      availableSeats: ticket?.AvailableSeats || "N/A",
       departAirport: departureAirport.name || "N/A",
       arriveAirport: arrivalAirport.name || "N/A",
     };
   };
+  //#endregion Utility Function
 
-  // Hooks
-  useEffect(() => {
-    dispatch(getAirlines());
-    dispatch(getListAirports());
-  }, [dispatch]);
-
-  useEffect(() => {
-    if (location.state?.searchParams) {
-      setSearchParams(location.state.searchParams);
-      handleSearch(location.state.searchParams);
-    }
-  }, [location.state?.searchParams]);
-
-  // Handle Functions
+  //#region Handle Function
   const handleSearch = useCallback(
     async (params) => {
       setSearchParams(params);
-      setLoading(true);
-      setSelectedOutboundTicket(null);
-      setSelectedReturnTicket(null);
       try {
-        const result = await dispatch(searchTickets(params)).unwrap();
-        if (result.message) toast.info(result.message);
+        await dispatch(searchFlightSchedules(params)).unwrap();
+        if (!outboundTickets.length && !returnTickets.length) {
+          toast.info("No suitable flight found.");
+        }
       } catch (error) {
         console.error("Search failed:", error);
         toast.error(
           "Lỗi khi tìm kiếm vé: " + (error.message || "Đã có lỗi xảy ra")
         );
-      } finally {
-        setLoading(false);
       }
     },
-    [dispatch]
+    [dispatch, outboundTickets.length, returnTickets.length]
   );
 
   const toggleDetails = (id) => setOpenDetails(openDetails === id ? null : id);
@@ -221,16 +221,17 @@ const SearchResultPage = () => {
     let total = 0;
     if (selectedOutboundTicket)
       total +=
-        selectedOutboundTicket.totalPrice ||
-        selectedOutboundTicket.basePrice ||
+        selectedOutboundTicket.TotalPrice ||
+        selectedOutboundTicket.BasePrice ||
         300;
     if (selectedReturnTicket && memoizedSearchParams.TripType === "roundTrip")
       total +=
-        selectedReturnTicket.totalPrice ||
-        selectedReturnTicket.basePrice ||
+        selectedReturnTicket.TotalPrice ||
+        selectedReturnTicket.BasePrice ||
         300;
     return `$${total.toFixed(2)}`;
   };
+  //#endregion Handle Function
 
   return (
     <div className="bg-gray-50 min-h-screen">
@@ -248,21 +249,21 @@ const SearchResultPage = () => {
         />
 
         <h2 className="text-2xl font-bold my-6 text-gray-800">
-          Search results
+          Search Results
         </h2>
 
-        {(loading || airlineLoading || airportLoading || ticketLoading) && (
+        {(flightScheduleLoading || airlineLoading || airportLoading) && (
           <p>Loading...</p>
         )}
-        {(airlineError || airportError || ticketError) && (
+        {(airlineError || airportError || flightScheduleError) && (
           <p className="text-red-500">
-            Error: {airlineError || airportError || ticketError}
+            Error: {airlineError || airportError || flightScheduleError}
           </p>
         )}
 
         <div className="mb-6">
           <h3 className="text-xl font-semibold text-gray-800 mb-2">
-            Ticket selected
+            Ticket Selected
           </h3>
           {selectedOutboundTicket && (
             <div className="mb-4">
@@ -330,12 +331,13 @@ const SearchResultPage = () => {
                           {flight.refundable}
                         </div>
                         <div className="flex justify-end space-x-2 mt-2">
-                          <button
-                            className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs w-[80px]"
+                          <Button
+                            primary
+                            className="text-xs px-2 py-1 w-[80px]"
                             onClick={() => setSelectedOutboundTicket(null)}
                           >
                             Cancel
-                          </button>
+                          </Button>
                           <button
                             className="bg-orange-500 hover:bg-orange-600 text-white px-2 py-1 rounded text-xs w-[80px]"
                             onClick={() => toggleDetails(flight.id)}
@@ -424,12 +426,13 @@ const SearchResultPage = () => {
                             {flight.refundable}
                           </div>
                           <div className="flex justify-end space-x-2 mt-2">
-                            <button
-                              className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs w-[80px]"
+                            <Button
+                              primary
+                              className="text-xs px-2 py-1 w-[80px]"
                               onClick={() => setSelectedReturnTicket(null)}
                             >
                               Cancel
-                            </button>
+                            </Button>
                             <button
                               className="bg-orange-500 hover:bg-orange-600 text-white px-2 py-1 rounded text-xs w-[80px]"
                               onClick={() => toggleDetails(flight.id)}
@@ -475,7 +478,7 @@ const SearchResultPage = () => {
                 Outbound Trip
               </h3>
               {outboundTickets.map((ticket) => {
-                if (selectedOutboundTicket?.id === ticket.id) return null;
+                if (selectedOutboundTicket?.Id === ticket.Id) return null;
                 const flight = formatFlightData(ticket);
                 return (
                   <div
@@ -573,7 +576,7 @@ const SearchResultPage = () => {
                 Return Trip
               </h3>
               {returnTickets.map((ticket) => {
-                if (selectedReturnTicket?.id === ticket.id) return null;
+                if (selectedReturnTicket?.Id === ticket.Id) return null;
                 const flight = formatFlightData(ticket);
                 return (
                   <div
@@ -662,13 +665,17 @@ const SearchResultPage = () => {
             </>
           )}
 
-        {!loading &&
+        {!selectedOutboundTicket &&
+          !flightScheduleLoading &&
           !airlineLoading &&
           !airportLoading &&
-          !ticketLoading &&
           outboundTickets.length === 0 &&
           (memoizedSearchParams.TripType !== "roundTrip" ||
-            returnTickets.length === 0) && <p>No suitable flight found.</p>}
+            returnTickets.length === 0) && (
+            <p className="text-center text-gray-600">
+              No suitable flight found.
+            </p>
+          )}
       </div>
       <Footer />
     </div>
