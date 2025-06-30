@@ -9,8 +9,8 @@ const initialState = {
     createError: null,
     updateLoading: false,
     updateError: null,
-    deleteLoading: false, // Thêm trạng thái loading cho delete
-    deleteError: null,   // Thêm trạng thái error cho delete
+    deleteLoading: false,
+    deleteError: null,
 };
 
 const airlineSlice = createSlice({
@@ -26,11 +26,12 @@ const airlineSlice = createSlice({
             })
             .addCase(getAirlines.fulfilled, (state, action) => {
                 state.loading = false;
-                state.list = action.payload;
+                state.list = Array.isArray(action.payload) ? action.payload : [];
             })
             .addCase(getAirlines.rejected, (state, action) => {
                 state.loading = false;
-                state.error = action.payload;
+                state.error = action.payload || "Failed to fetch airlines";
+                state.list = []; // Đảm bảo list là mảng rỗng khi có lỗi
             })
             // Create Airline actions
             .addCase(createAirline.pending, (state) => {
@@ -67,7 +68,7 @@ const airlineSlice = createSlice({
                 state.updateLoading = false;
                 const index = state.list.findIndex((airline) => airline.id === action.payload.id);
                 if (index !== -1) {
-                    state.list[index] = action.payload; // Cập nhật airline trong danh sách
+                    state.list[index] = action.payload;
                 }
             })
             .addCase(updateAirline.rejected, (state, action) => {

@@ -1,8 +1,8 @@
 import { createSlice } from "@reduxjs/toolkit";
-import { loginUser, registerUser } from "../../thunk/authenticationThunk"; // Cập nhật đường dẫn
+import { loginUser, registerUser } from "../../thunk/authenticationThunk";
 
 const authSlice = createSlice({
-    name: "authentication", // Đổi từ auth
+    name: "authentication",
     initialState: {
         user: JSON.parse(localStorage.getItem("currentUser")) || null,
         isLoggedIn: localStorage.getItem("isLoggedIn") === "true",
@@ -22,7 +22,6 @@ const authSlice = createSlice({
         },
     },
     extraReducers: (builder) => {
-        // Xử lý đăng ký
         builder
             .addCase(registerUser.pending, (state) => {
                 state.loading = true;
@@ -35,19 +34,19 @@ const authSlice = createSlice({
             .addCase(registerUser.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
-            });
-
-        // Xử lý đăng nhập
-        builder
+            })
             .addCase(loginUser.pending, (state) => {
                 state.loading = true;
                 state.error = null;
             })
             .addCase(loginUser.fulfilled, (state, action) => {
                 state.loading = false;
-                state.user = action.payload.user;
+                state.user = action.payload.user; // Đảm bảo user chứa đầy đủ thông tin
                 state.isLoggedIn = true;
                 state.role = action.payload.user.role;
+                // Lưu userInfo vào localStorage
+                const { password, ...safeUser } = action.payload.user;
+                localStorage.setItem("currentUser", JSON.stringify(safeUser));
             })
             .addCase(loginUser.rejected, (state, action) => {
                 state.loading = false;

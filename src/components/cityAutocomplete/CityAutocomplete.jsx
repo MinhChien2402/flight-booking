@@ -1,12 +1,18 @@
 // Libs
 import React, { useState, useEffect } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+import { createSelector } from "reselect";
 
 // Thunks
 import { getListAirports } from "../../thunk/airportThunk";
 
 // Others
 // Styles, images, icons
+
+const selectAirports = createSelector(
+  (state) => state.airports,
+  (airportsState) => airportsState?.data || []
+);
 
 const CityAutocomplete = ({
   value: propValue,
@@ -16,23 +22,25 @@ const CityAutocomplete = ({
 }) => {
   //#region Declare Hook
   const dispatch = useDispatch();
+  const { airports, loading, error } = useSelector((state) => {
+    const airportsState = state.airports || {
+      loading: false,
+      error: null,
+      data: [],
+    };
+    return {
+      airports: selectAirports(state),
+      loading: airportsState.loading,
+      error: airportsState.error,
+    };
+  });
   //#endregion Declare Hook
-
-  //#region Selector
-  const {
-    data: airports = [],
-    loading,
-    error,
-  } = useSelector(
-    (state) => state.airport || { data: [], loading: false, error: null }
-  );
-  //#endregion Selector
 
   //#region Declare State
   const [filteredAirports, setFilteredAirports] = useState([]);
   const [inputValue, setInputValue] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
-  const [initialLoad, setInitialLoad] = useState(true); // Để kiểm soát khởi tạo lần đầu
+  const [initialLoad, setInitialLoad] = useState(true);
   //#endregion Declare State
 
   //#region Implement Hook
@@ -122,7 +130,7 @@ const CityAutocomplete = ({
 
   //#region Handle Function
   if (loading) return <div>Loading airports...</div>;
-  if (error) return <div>Error loading airports: {error.message || error}</div>;
+  if (error) return <div>Error loading airports: {error}</div>;
 
   return (
     <div className="relative">

@@ -3,6 +3,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
+import { BiArrowBack, BiDownload } from "react-icons/bi";
 // Components, Layouts, Pages
 import AccountInfo from "../../components/accountInfo/AccountInfo";
 import Header from "../../components/header/Header";
@@ -11,12 +12,11 @@ import Button from "../../components/button/Button";
 import BookedTicketsTable from "../../components/bookedTicketTable/BookedTicketTable";
 import ReservationDetailModal from "../../components/reservationDetailModal/ReservationDetailModal";
 // Others
+import { resetReservationDetailState } from "../../ultis/redux/reservationDetailSlice";
 import { getUserReservations } from "../../thunk/userReservationThunk";
+import { downloadReservationPdf } from "../../thunk/pdfGenerationThunk";
 import { getReservationDetail } from "../../thunk/reservationDetailThunk";
 // Styles, images, icons
-import { BiArrowBack, BiDownload } from "react-icons/bi";
-import { downloadReservationPdf } from "../../thunk/pdfGenerationThunk";
-
 const ReservationsPage = () => {
   //#region Declare Hook
   const navigate = useNavigate();
@@ -45,14 +45,17 @@ const ReservationsPage = () => {
 
   //#region Declare State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedReservationId, setSelectedReservationId] = useState(null);
   //#endregion Declare State
 
   //#region Implement Hook
   useEffect(() => {
+    // Reset reservation detail state khi vào trang
+    dispatch(resetReservationDetailState());
     dispatch(getUserReservations())
       .unwrap()
       .then((payload) => {
-        console.log("API Response:", payload); // Kiểm tra số lượng reservations
+        console.log("API Response:", payload);
       })
       .catch((error) => {
         console.log("API Error:", error);
@@ -67,7 +70,7 @@ const ReservationsPage = () => {
       detailError,
       isModalOpen,
     });
-    if (isModalOpen && reservationDetail && !detailLoading) {
+    if (isModalOpen && !detailLoading && reservationDetail) {
       console.log("Modal should be visible with data:", reservationDetail);
     } else if (isModalOpen && detailLoading) {
       console.log("Modal delayed due to loading:", detailLoading);
@@ -77,9 +80,8 @@ const ReservationsPage = () => {
 
   //#region Handle Function
   const handleAirlineClick = (reservationId) => {
-    if (detailLoading) {
-      return;
-    }
+    if (detailLoading) return;
+    setSelectedReservationId(reservationId);
     dispatch(getReservationDetail(reservationId))
       .unwrap()
       .then(() => {
@@ -93,9 +95,7 @@ const ReservationsPage = () => {
   };
 
   const handleDownloadPdf = (reservationId) => {
-    if (pdfLoading) {
-      return;
-    }
+    if (pdfLoading) return;
     dispatch(downloadReservationPdf(reservationId))
       .unwrap()
       .then(() => {
@@ -112,16 +112,16 @@ const ReservationsPage = () => {
       });
   };
 
-  // Đóng modal
   const handleCloseModal = () => {
     setIsModalOpen(false);
+    setSelectedReservationId(null);
+    dispatch(resetReservationDetailState()); // Reset state khi đóng modal
   };
-  //#endregion Handle Function
 
   const mappedReservations = useMemo(() => {
-    console.log("Raw reservations:", reservations); // Debug dữ liệu thô
+    console.log("Raw reservations:", reservations);
     if (!Array.isArray(reservations)) return [];
-    const result = reservations.flatMap((reservation) =>
+    return reservations.flatMap((reservation) =>
       (reservation.Tickets || []).map((ticket) => {
         const departureTime = new Date(ticket.DepartureTime || "");
         const arrivalTime = new Date(ticket.ArrivalTime || "");
@@ -133,15 +133,6 @@ const ReservationsPage = () => {
         const duration = isNaN(durationMs)
           ? "N/A"
           : `${durationHours}h ${durationMinutes}m`;
-
-        console.log(
-          `Mapping ticket for ReservationId ${reservation.ReservationId}:`,
-          {
-            departureTime,
-            arrivalTime,
-            duration,
-          }
-        ); // Debug từng ticket
 
         return {
           ReservationId: reservation.ReservationId || "N/A",
@@ -166,28 +157,22 @@ const ReservationsPage = () => {
         };
       })
     );
-    console.log("Mapped Reservations Length:", result.length); // Kiểm tra tổng số vé
-    return result;
   }, [reservations]);
+  //#endregion Handle Function
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
-
       <Button
         className="text-xs px-2 py-1 w-[100px] ml-[190px] mt-3"
         onClick={() => navigate("/")}
       >
         <BiArrowBack size={20} />
       </Button>
-
       <div className="max-w-5xl mx-auto px-4 py-8">
-        {/* Account Info Section */}
         <div className="bg-white shadow-md rounded-2xl p-6 mb-8">
           <AccountInfo />
         </div>
-
-        {/* Booked Tickets Section */}
         <div className="bg-white shadow-md rounded-2xl p-6">
           <h2 className="text-2xl font-semibold text-blue-600 mb-4">
             Reservations are booked
@@ -218,10 +203,8 @@ const ReservationsPage = () => {
         </div>
       </div>
       <Footer />
-
-      {/* Modal hiển thị chi tiết vé */}
       <ReservationDetailModal
-        reservationId={isModalOpen ? reservationDetail?.ReservationId : null} // Sử dụng reservationId thay vì isOpen
+        reservationId={isModalOpen ? selectedReservationId : null}
         onClose={handleCloseModal}
       />
     </div>

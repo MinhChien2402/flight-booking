@@ -34,13 +34,23 @@ const SearchResultPage = () => {
     data: airports,
     loading: airportLoading,
     error: airportError,
-  } = useSelector((state) => state.airport);
+  } = useSelector(
+    (state) => state.airports || { data: [], loading: false, error: null }
+  );
   const {
     outboundTickets,
     returnTickets,
     loading: flightScheduleLoading,
     error: flightScheduleError,
-  } = useSelector((state) => state.flightSchedule);
+  } = useSelector(
+    (state) =>
+      state.flightSchedule || {
+        outboundTickets: [],
+        returnTickets: [],
+        loading: false,
+        error: null,
+      }
+  );
   //#endregion Selector
 
   //#region Declare State
@@ -82,42 +92,62 @@ const SearchResultPage = () => {
   }, [dispatch]);
 
   useEffect(() => {
-    if (location.state?.searchParams) {
+    if (
+      location.state?.searchParams &&
+      airlines.length > 0 &&
+      airports.length > 0
+    ) {
       setSearchParams(location.state.searchParams);
       handleSearch(location.state.searchParams);
+    } else if (!airlines.length || !airports.length) {
     }
-  }, [location.state?.searchParams]);
+  }, [location.state?.searchParams, airlines.length, airports.length]);
   //#endregion Implement Hook
 
   //#region Utility Function
   const formatFlightData = (ticket) => {
-    if (!ticket) return null;
-    const airline = airlines.find((a) => a?.id === ticket?.AirlineId) || {
-      name: "Unknown Airline",
-    };
-    const departureAirport = airports.find(
-      (a) => a?.id === ticket?.DepartureAirportId
-    ) || { code: "N/A", name: "N/A" };
-    const arrivalAirport = airports.find(
-      (a) => a?.id === ticket?.ArrivalAirportId
-    ) || { code: "N/A", name: "N/A" };
+    if (!ticket) {
+      return null;
+    }
 
-    const basePrice = ticket?.AdultPrice || ticket?.BasePrice || 0;
-    const pricePerAdult = basePrice / memoizedSearchParams.Adults || 300;
+    const airline = ticket?.airline || { name: "Unknown Airline" };
+    const departureAirport = ticket?.departureAirport ||
+      ticket?.DepartureAirport ||
+      ticket?.departure_airport || {
+        code: "N/A",
+        name: "N/A",
+      };
+    const arrivalAirport = ticket?.arrivalAirport ||
+      ticket?.ArrivalAirport ||
+      ticket?.arrival_airport || {
+        code: "N/A",
+        name: "N/A",
+      };
+
+    const basePrice = ticket?.price || 0;
+    const pricePerAdult = basePrice / memoizedSearchParams.Adults || basePrice;
     const adultPrice = basePrice;
     const childPrice = pricePerAdult * 0.7 * memoizedSearchParams.Children;
     const totalPrice = adultPrice + childPrice;
 
-    const departureTime = ticket?.DepartureTime
+    const departureTime = ticket?.departureTime
+      ? new Date(ticket.departureTime)
+      : ticket?.DepartureTime
       ? new Date(ticket.DepartureTime)
+      : ticket?.departure_time
+      ? new Date(ticket.departure_time)
       : null;
-    const arrivalTime = ticket?.ArrivalTime
+    const arrivalTime = ticket?.arrivalTime
+      ? new Date(ticket.arrivalTime)
+      : ticket?.ArrivalTime
       ? new Date(ticket.ArrivalTime)
+      : ticket?.arrival_time
+      ? new Date(ticket.arrival_time)
       : null;
 
     return {
-      id: ticket?.Id || "unknown",
-      ticketId: ticket?.Id || "unknown",
+      id: ticket?.id || "unknown",
+      ticketId: ticket?.id || "unknown",
       airline: airline.name || "Unknown Airline",
       departTime: departureTime
         ? departureTime.toLocaleTimeString([], {
@@ -126,7 +156,7 @@ const SearchResultPage = () => {
           })
         : "N/A",
       departDate: departureTime ? departureTime.toLocaleDateString() : "N/A",
-      from: departureAirport.code || "N/A",
+      from: departureAirport.code || departureAirport.name || "N/A", // Sử dụng name nếu code không có
       arriveTime: arrivalTime
         ? arrivalTime.toLocaleTimeString([], {
             hour: "2-digit",
@@ -134,7 +164,7 @@ const SearchResultPage = () => {
           })
         : "N/A",
       arriveDate: arrivalTime ? arrivalTime.toLocaleDateString() : "N/A",
-      to: arrivalAirport.code || "N/A",
+      to: arrivalAirport.code || arrivalAirport.name || "N/A", // Sử dụng name nếu code không có
       duration:
         departureTime && arrivalTime
           ? `${Math.floor(
@@ -144,17 +174,33 @@ const SearchResultPage = () => {
             )}m`
           : "N/A",
       stops:
-        ticket?.Stops !== undefined
-          ? ticket.Stops === 0
+        ticket?.stops !== undefined
+          ? ticket.stops === 0
             ? "Non-stop"
-            : `${ticket.Stops} stop(s)`
+            : `${ticket.stops} stop(s)`
           : "N/A",
       price: `$${totalPrice.toFixed(2)}`,
+      originalPrice: `$${basePrice.toFixed(2)}`,
       refundable:
-        ticket?.FlightClass === "economy" ? "Refundable" : "Non-refunded",
-      availableSeats: ticket?.AvailableSeats || "N/A",
+        (
+          ticket?.flightClass ||
+          ticket?.FlightClass ||
+          ticket?.flight_class
+        )?.toLowerCase() === "economy"
+          ? "Refundable"
+          : "Non-refunded",
+      availableSeats:
+        ticket?.availableSeats ||
+        ticket?.AvailableSeats ||
+        ticket?.available_seats ||
+        "N/A",
       departAirport: departureAirport.name || "N/A",
       arriveAirport: arrivalAirport.name || "N/A",
+      flightClass:
+        ticket?.flightClass ||
+        ticket?.FlightClass ||
+        ticket?.flight_class ||
+        "N/A",
     };
   };
   //#endregion Utility Function
@@ -164,7 +210,21 @@ const SearchResultPage = () => {
     async (params) => {
       setSearchParams(params);
       try {
-        await dispatch(searchFlightSchedules(params)).unwrap();
+        const formattedParams = {
+          ...params,
+          DepartureDate: params.DepartureDate
+            ? new Date(params.DepartureDate).toISOString().split("T")[0]
+            : "",
+          ReturnDate: params.ReturnDate
+            ? new Date(params.ReturnDate).toISOString().split("T")[0]
+            : "",
+          FlightClass: params.FlightClass
+            ? params.FlightClass.toLowerCase()
+            : "economy",
+        };
+        const result = await dispatch(
+          searchFlightSchedules(formattedParams)
+        ).unwrap();
         if (!outboundTickets.length && !returnTickets.length) {
           toast.info("No suitable flight found.");
         }
@@ -214,21 +274,14 @@ const SearchResultPage = () => {
       searchParams: memoizedSearchParams,
     };
 
-    navigate("/review-booking", { state: bookingData });
+    navigate("/review-reservation", { state: bookingData });
   };
 
   const calculateTotalPrice = () => {
     let total = 0;
-    if (selectedOutboundTicket)
-      total +=
-        selectedOutboundTicket.TotalPrice ||
-        selectedOutboundTicket.BasePrice ||
-        300;
+    if (selectedOutboundTicket) total += selectedOutboundTicket.price || 300;
     if (selectedReturnTicket && memoizedSearchParams.TripType === "roundTrip")
-      total +=
-        selectedReturnTicket.TotalPrice ||
-        selectedReturnTicket.BasePrice ||
-        300;
+      total += selectedReturnTicket.price || 300;
     return `$${total.toFixed(2)}`;
   };
   //#endregion Handle Function
@@ -327,6 +380,10 @@ const SearchResultPage = () => {
                         <div className="text-base font-bold text-gray-800">
                           {flight.price}
                         </div>
+                        <div className="text-xs text-gray-600">
+                          Original: {flight.originalPrice}
+                        </div>{" "}
+                        {/* Thêm giá gốc */}
                         <div className="text-xs text-green-600">
                           {flight.refundable}
                         </div>
@@ -454,31 +511,13 @@ const SearchResultPage = () => {
               </div>
             )}
 
-          {(selectedOutboundTicket || selectedReturnTicket) && (
-            <div className="flex justify-between items-center mb-4">
-              <div className="text-lg font-semibold text-gray-800">
-                Price: {calculateTotalPrice()}
-              </div>
-              <Button
-                primary
-                className="text-sm px-4 py-2"
-                onClick={handleBookNow}
-              >
-                Proceed to Review
-              </Button>
-            </div>
-          )}
-        </div>
-
-        {!selectedOutboundTicket &&
-          Array.isArray(outboundTickets) &&
-          outboundTickets.length > 0 && (
-            <>
-              <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                Outbound Trip
-              </h3>
+          {/* Hiển thị danh sách vé tìm thấy */}
+          {!selectedOutboundTicket && outboundTickets.length > 0 && (
+            <div>
+              <h4 className="text-lg font-medium text-gray-700">
+                Available Outbound Flights
+              </h4>
               {outboundTickets.map((ticket) => {
-                if (selectedOutboundTicket?.Id === ticket.Id) return null;
                 const flight = formatFlightData(ticket);
                 return (
                   <div
@@ -546,136 +585,127 @@ const SearchResultPage = () => {
                           >
                             Select
                           </Button>
-                          <button
-                            className="bg-orange-500 hover:bg-orange-600 text-white px-2 py-1 rounded text-xs w-[80px]"
-                            onClick={() => toggleDetails(flight.id)}
-                          >
-                            {openDetails === flight.id ? "Hidden" : "Detail"}
-                          </button>
                         </div>
                       </div>
                     </div>
-                    {openDetails === flight.id && (
-                      <div className="border border-gray-300 rounded-md mt-2 overflow-hidden">
-                        <FlightDetailsHeader flight={flight} />
-                        <FlightDetails flight={flight} />
-                      </div>
-                    )}
                   </div>
                 );
               })}
-            </>
+            </div>
           )}
 
-        {memoizedSearchParams.TripType === "roundTrip" &&
-          !selectedReturnTicket &&
-          Array.isArray(returnTickets) &&
-          returnTickets.length > 0 && (
-            <>
-              <h3 className="text-xl font-semibold text-gray-800 mb-2 mt-6">
-                Return Trip
-              </h3>
-              {returnTickets.map((ticket) => {
-                if (selectedReturnTicket?.Id === ticket.Id) return null;
-                const flight = formatFlightData(ticket);
-                return (
-                  <div
-                    key={flight.id}
-                    className="flex flex-col bg-white rounded-lg shadow px-4 py-3 mb-6 border border-gray-200"
-                  >
-                    <div className="flex items-center justify-between w-full">
-                      <div className="flex items-center space-x-3 w-1/5">
-                        <div className="text-sm font-semibold text-sky-700">
-                          {flight.airline}
-                        </div>
-                      </div>
-                      <div className="flex justify-between w-3/5 text-center text-sm">
-                        <div className="w-1/3">
-                          <div className="text-xs text-gray-500">Depart</div>
-                          <div className="text-lg font-bold">
-                            {flight.departTime}
-                          </div>
-                          <div className="text-xs text-gray-600">
-                            {flight.departDate}
-                          </div>
-                          <div className="text-xs text-gray-600">
-                            {flight.from}
+          {!selectedReturnTicket &&
+            memoizedSearchParams.TripType === "roundTrip" &&
+            returnTickets.length > 0 && (
+              <div>
+                <h4 className="text-lg font-medium text-gray-700">
+                  Available Return Flights
+                </h4>
+                {returnTickets.map((ticket) => {
+                  const flight = formatFlightData(ticket);
+                  return (
+                    <div
+                      key={flight.id}
+                      className="flex flex-col bg-white rounded-lg shadow px-4 py-3 mb-6 border border-gray-200"
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <div className="flex items-center space-x-3 w-1/5">
+                          <div className="text-sm font-semibold text-sky-700">
+                            {flight.airline}
                           </div>
                         </div>
-                        <div className="w-1/3 flex flex-col items-center justify-center">
-                          <div className="text-blue-600 font-semibold">
-                            {flight.duration}
+                        <div className="flex justify-between w-3/5 text-center text-sm">
+                          <div className="w-1/3">
+                            <div className="text-xs text-gray-500">Depart</div>
+                            <div className="text-lg font-bold">
+                              {flight.departTime}
+                            </div>
+                            <div className="text-xs text-gray-600">
+                              {flight.departDate}
+                            </div>
+                            <div className="text-xs text-gray-600">
+                              {flight.from}
+                            </div>
                           </div>
-                          <div className="text-xs text-gray-500">
-                            {flight.stops}
+                          <div className="w-1/3 flex flex-col items-center justify-center">
+                            <div className="text-blue-600 font-semibold">
+                              {flight.duration}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {flight.stops}
+                            </div>
+                            <div className="flex items-center justify-center mt-1">
+                              <span className="text-pink-500">📍</span>
+                              <div className="border-b border-dashed border-gray-400 w-12 mx-2"></div>
+                              <span className="text-blue-500">✈️</span>
+                            </div>
                           </div>
-                          <div className="flex items-center justify-center mt-1">
-                            <span className="text-pink-500">📍</span>
-                            <div className="border-b border-dashed border-gray-400 w-12 mx-2"></div>
-                            <span className="text-blue-500">✈️</span>
+                          <div className="w-1/3">
+                            <div className="text-xs text-gray-500">Arrive</div>
+                            <div className="text-lg font-bold">
+                              {flight.arriveTime}
+                            </div>
+                            <div className="text-xs text-gray-600">
+                              {flight.arriveDate}
+                            </div>
+                            <div className="text-xs text-gray-600">
+                              {flight.to}
+                            </div>
                           </div>
                         </div>
-                        <div className="w-1/3">
-                          <div className="text-xs text-gray-500">Arrive</div>
-                          <div className="text-lg font-bold">
-                            {flight.arriveTime}
+                        <div className="flex flex-col items-end w-1/5 text-right text-sm space-y-1">
+                          <div className="text-xs text-gray-500">Giá</div>
+                          <div className="text-base font-bold text-gray-800">
+                            {flight.price}
                           </div>
-                          <div className="text-xs text-gray-600">
-                            {flight.arriveDate}
+                          <div className="text-xs text-green-600">
+                            {flight.refundable}
                           </div>
-                          <div className="text-xs text-gray-600">
-                            {flight.to}
+                          <div className="flex justify-end space-x-2 mt-2">
+                            <Button
+                              primary
+                              className="text-xs px-2 py-1 w-[80px]"
+                              onClick={() => handleSelectTicket(ticket, false)}
+                            >
+                              Select
+                            </Button>
                           </div>
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-end w-1/5 text-right text-sm space-y-1">
-                        <div className="text-xs text-gray-500">Price</div>
-                        <div className="text-base font-bold text-gray-800">
-                          {flight.price}
-                        </div>
-                        <div className="text-xs text-green-600">
-                          {flight.refundable}
-                        </div>
-                        <div className="flex justify-end space-x-2 mt-2">
-                          <Button
-                            primary
-                            className="text-xs px-2 py-1 w-[80px]"
-                            onClick={() => handleSelectTicket(ticket, false)}
-                          >
-                            Select
-                          </Button>
-                          <button
-                            className="bg-orange-500 hover:bg-orange-600 text-white px-2 py-1 rounded text-xs w-[80px]"
-                            onClick={() => toggleDetails(flight.id)}
-                          >
-                            {openDetails === flight.id ? "Hidden" : "Detail"}
-                          </button>
                         </div>
                       </div>
                     </div>
-                    {openDetails === flight.id && (
-                      <div className="border border-gray-300 rounded-md mt-2 overflow-hidden">
-                        <FlightDetailsHeader flight={flight} />
-                        <FlightDetails flight={flight} />
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </>
+                  );
+                })}
+              </div>
+            )}
+
+          {(selectedOutboundTicket || selectedReturnTicket) && (
+            <div className="flex justify-between items-center mb-4">
+              <div className="text-lg font-semibold text-gray-800">
+                Price: {calculateTotalPrice()}
+              </div>
+              <Button
+                primary
+                className="text-sm px-4 py-2"
+                onClick={handleBookNow}
+              >
+                Proceed to Review
+              </Button>
+            </div>
           )}
 
-        {!selectedOutboundTicket &&
-          !flightScheduleLoading &&
-          !airlineLoading &&
-          !airportLoading &&
-          outboundTickets.length === 0 &&
-          (memoizedSearchParams.TripType !== "roundTrip" ||
-            returnTickets.length === 0) && (
-            <p className="text-center text-gray-600">
-              No suitable flight found.
-            </p>
-          )}
+          {!selectedOutboundTicket &&
+            !selectedReturnTicket &&
+            !flightScheduleLoading &&
+            !airlineLoading &&
+            !airportLoading &&
+            outboundTickets.length === 0 &&
+            (memoizedSearchParams.TripType !== "roundTrip" ||
+              returnTickets.length === 0) && (
+              <p className="text-center text-gray-600">
+                No suitable flight found.
+              </p>
+            )}
+        </div>
       </div>
       <Footer />
     </div>

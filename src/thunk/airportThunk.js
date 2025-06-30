@@ -5,8 +5,19 @@ export const getListAirports = createAsyncThunk(
     "airports/getList",
     async (_, { rejectWithValue }) => {
         try {
-            const response = await axiosInstance.get("/Airport"); // Đổi từ /airports
-            return response.data;
+            if (process.env.NODE_ENV === "development") {
+                console.log("Calling getListAirports...");
+            }
+            const response = await axiosInstance.get("/Airport");
+            if (process.env.NODE_ENV === "development") {
+                console.log("getListAirports response:", response.data);
+            }
+            // Kiểm tra nếu response.data là object và có message, coi như lỗi
+            if (response.data && typeof response.data === "object" && "message" in response.data) {
+                return rejectWithValue(response.data.message);
+            }
+            // Đảm bảo trả về mảng, nếu không phải mảng thì trả về mảng rỗng
+            return Array.isArray(response.data) ? response.data : [];
         } catch (error) {
             return rejectWithValue(
                 error.response?.data?.message || error.message || "Unknown error"
@@ -20,7 +31,7 @@ export const createAirport = createAsyncThunk(
     "airports/create",
     async (airportData, { rejectWithValue }) => {
         try {
-            const response = await axiosInstance.post("/Airport", airportData); // Đổi từ /airports
+            const response = await axiosInstance.post("/Airport", airportData);
             return response.data;
         } catch (error) {
             return rejectWithValue(
@@ -35,7 +46,7 @@ export const updateAirport = createAsyncThunk(
     "airports/update",
     async ({ id, airportData }, { rejectWithValue }) => {
         try {
-            const response = await axiosInstance.put(`/Airport/${id}`, airportData); // Đổi từ /airports
+            const response = await axiosInstance.put(`/Airport/${id}`, airportData);
             return response.data;
         } catch (error) {
             return rejectWithValue(
@@ -50,7 +61,7 @@ export const deleteAirport = createAsyncThunk(
     "airports/delete",
     async (id, { rejectWithValue }) => {
         try {
-            await axiosInstance.delete(`/Airport/${id}`); // Đổi từ /airports
+            await axiosInstance.delete(`/Airport/${id}`);
             return id;
         } catch (error) {
             return rejectWithValue(

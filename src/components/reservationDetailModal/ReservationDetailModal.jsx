@@ -36,6 +36,8 @@ const ReservationDetailModal = ({ reservationId, onClose }) => {
   //#endregion Implement Hook
 
   //#region Handle Function
+  if (!reservationId) return null; // Không hiển thị nếu không có reservationId
+
   if (loading) return <div className="modal loading">Loading...</div>;
   if (error)
     return (

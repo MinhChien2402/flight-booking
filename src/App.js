@@ -36,16 +36,15 @@ const App = () => (
           <Route path="/search-results" element={<SearchResultsPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
-          <Route path="/review-reservation" element={<ReviewReservation />} /> {/* Đổi từ review-booking */}
-          <Route path="/thank-you" element={<ThankYouPage />} />
-          <Route path="/reservations" element={<ReservationsPage />} /> {/* Đổi từ bookings */}
-          <Route path="/reservation/:id" element={<ReservationDetailPage />} /> {/* Đổi từ booking/:id */}
+          <Route path="/review-reservation" element={<ReviewReservation />} />
+          <Route path="/reservations" element={<ReservationsPage />} />
+          <Route path="/reservation/:id" element={<ReservationDetailPage />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/airlines" element={<AirlinesPage />} />
           <Route path="/airports" element={<AirportsPage />} />
           <Route path="/countries" element={<CountriesPage />} />
-          <Route path="/aircrafts" element={<AircraftsPage />} /> {/* Đổi từ planes */}
-          <Route path="/flight-schedules" element={<FlightSchedulesPage />} /> {/* Đổi từ tickets */}
+          <Route path="/aircrafts" element={<AircraftsPage />} />
+          <Route path="/flight-schedules" element={<FlightSchedulesPage />} />
         </Routes>
 
         <ToastContainer

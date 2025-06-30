@@ -17,7 +17,13 @@ const AccountInfo = () => {
   //#endregion Declare Hook
 
   //#region Selector
-  const { userInfo, status, error } = useSelector((state) => state.user);
+  const { userInfo, status, error } = useSelector(
+    (state) => state.userProfile
+  ) || {
+    userInfo: null,
+    status: "idle",
+    error: null,
+  };
   //#endregion Selector
 
   //#region Declare State
@@ -89,7 +95,7 @@ const AccountInfo = () => {
         <div className="space-y-4">
           {[
             { label: "Full Name", name: "fullName", type: "text" },
-            { label: "Email", name: "email", type: "email" },
+            { label: "Email", name: "email", type: "email", disabled: true },
             { label: "Phone Number", name: "phoneNumber", type: "text" },
             {
               label: "Date of Birth",
@@ -114,7 +120,7 @@ const AccountInfo = () => {
               name: "preferredCreditCard",
               type: "text",
             },
-          ].map(({ label, name, type, max, options }) => (
+          ].map(({ label, name, type, max, options, disabled }) => (
             <div
               key={name}
               className="flex flex-col sm:flex-row sm:items-center"
@@ -130,7 +136,7 @@ const AccountInfo = () => {
                       value={editedInfo[name] || ""}
                       onChange={handleChange}
                       className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-purple-400 focus:outline-none"
-                      disabled={loading}
+                      disabled={loading || disabled}
                     >
                       {options.map((opt) => (
                         <option key={opt.value} value={opt.value}>
@@ -146,7 +152,7 @@ const AccountInfo = () => {
                       onChange={handleChange}
                       max={max}
                       className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-purple-400 focus:outline-none"
-                      disabled={loading}
+                      disabled={loading || disabled}
                     />
                   )
                 ) : (
@@ -172,7 +178,7 @@ const AccountInfo = () => {
                   loading ? "opacity-50 cursor-not-allowed" : ""
                 }`}
               >
-                {loading ? "Đang lưu..." : "Save"}
+                {loading ? "Saving..." : "Save"}
               </button>
               <button
                 onClick={handleCancel}

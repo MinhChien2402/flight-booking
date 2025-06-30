@@ -29,7 +29,7 @@ const FlightDetails = ({ flight }) => {
     <div className="bg-white border border-gray-300 rounded-md overflow-hidden text-sm text-gray-800">
       {/* Header */}
       <div className="border-b border-gray-300 bg-gray-100 px-4 py-2 font-semibold">
-        {flight.from} to {flight.to}, {flight.departDate}
+        {flight.from} to {flight.to}, {flight.departDate || "N/A"}
       </div>
 
       {/* Airline & Available Seats Info */}
@@ -46,14 +46,14 @@ const FlightDetails = ({ flight }) => {
           <div className="font-semibold text-blue-600 mb-1">Departure:</div>
           <div className="text-sm">{flight.departAirport || "N/A"}</div>
           <div className="text-sm font-medium mt-1">
-            {flight.departTime} - {flight.departDate}
+            {flight.departTime || "N/A"} - {flight.departDate || "N/A"}
           </div>
         </div>
         <div>
           <div className="font-semibold text-blue-600 mb-1">Arrival:</div>
           <div className="text-sm">{flight.arriveAirport || "N/A"}</div>
           <div className="text-sm font-medium mt-1">
-            {flight.arriveTime} - {flight.arriveDate}
+            {flight.arriveTime || "N/A"} - {flight.arriveDate || "N/A"}
           </div>
         </div>
       </div>

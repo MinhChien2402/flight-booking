@@ -27,14 +27,33 @@ const FlightSchedulesPage = () => {
   //#endregion Declare Hook
 
   //#region Selector
+  const flightScheduleState = useSelector(
+    (state) => state.flightSchedule || {}
+  );
+  const airlineState = useSelector(
+    (state) => state.airline || { list: [], loading: false, error: null }
+  );
+  const airportState = useSelector(
+    (state) => state.airports || { data: [], loading: false, error: null }
+  );
+
   const {
     flightSchedules,
-    airlines,
-    airports,
-    loading,
-    error,
+    loading: flightScheduleLoading,
+    error: flightScheduleError,
     aircraftsByAirline,
-  } = useSelector((state) => state.flightSchedule);
+  } = flightScheduleState;
+  const {
+    list: airlines,
+    loading: airlineLoading,
+    error: airlineError,
+  } = airlineState;
+  const {
+    data: airports,
+    loading: airportLoading,
+    error: airportError,
+  } = airportState;
+
   //#endregion Selector
 
   //#region Declare State
@@ -61,24 +80,32 @@ const FlightSchedulesPage = () => {
 
   //#region Implement Hook
   useEffect(() => {
-    dispatch(getListFlightSchedules())
-      .unwrap()
-      .then(() => console.log("Flight schedules loaded:", flightSchedules))
-      .catch((err) => {
-        console.error("Failed to fetch flight schedules:", err);
-        toast.error(
-          "Failed to load flight schedules. Check server connection."
-        );
-      });
+    const fetchData = async () => {
+      try {
+        await Promise.all([
+          dispatch(getListFlightSchedules()).unwrap(),
+          dispatch(getAirlines()).unwrap(),
+          dispatch(getListAirports()).unwrap(),
+        ]);
+        console.log("Airlines loaded from state.airline:", airlines); // Debug
+      } catch (err) {
+        // ...
+      }
+    };
+    fetchData();
   }, [dispatch]);
 
   useEffect(() => {
     if (formData.airlineId) {
       dispatch(getAircraftsByAirline(formData.airlineId))
         .unwrap()
+        .then((data) => console.log("Aircrafts by airline loaded:", data))
         .catch((err) => {
+          console.error("Failed to fetch aircrafts:", err);
           toast.warn(
-            "Không thể tải danh sách máy bay! Vui lòng kiểm tra kết nối hoặc server."
+            `Không thể tải danh sách máy bay: ${
+              err.message || "Vui lòng kiểm tra kết nối hoặc server"
+            }`
           );
         });
     }
@@ -88,18 +115,20 @@ const FlightSchedulesPage = () => {
     if (
       formData.airlineId &&
       aircraftsByAirline.length === 0 &&
-      !loading &&
-      error
+      !flightScheduleLoading &&
+      flightScheduleError
     ) {
       toast.warn("No aircraft for this airline!");
     }
-  }, [aircraftsByAirline, loading, error, formData.airlineId]);
+  }, [
+    aircraftsByAirline,
+    flightScheduleLoading,
+    flightScheduleError,
+    formData.airlineId,
+  ]);
 
   useEffect(() => {
-    // Đồng bộ displayedFlightSchedules với flightSchedules ban đầu
     setDisplayedFlightSchedules(flightSchedules || []);
-
-    // Lọc dữ liệu dựa trên searchTerm
     const filtered = (flightSchedules || []).filter((schedule) => {
       const keyword = searchTerm.toLowerCase();
       return (
@@ -132,7 +161,15 @@ const FlightSchedulesPage = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    console.log(`Changing ${name} to value:`, value); // Debug
+    const newValue =
+      value === "undefined" || value === undefined || value === null
+        ? ""
+        : value;
+    setFormData((prev) => ({ ...prev, [name]: newValue }));
+    if (name === "flightClass") {
+      console.log("Updated flightClass:", newValue); // Kiểm tra giá trị
+    }
   };
 
   const validateForm = () => {
@@ -175,6 +212,17 @@ const FlightSchedulesPage = () => {
       return false;
     }
 
+    if (!formData.flightClass || formData.flightClass === "") {
+      toast.error("Please select a flight class!");
+      return false;
+    }
+
+    const airline = airlines.find((a) => a.id === parseInt(formData.airlineId));
+    if (!airline || isNaN(parseInt(formData.airlineId))) {
+      toast.error("Selected airline does not exist or is invalid!");
+      return false;
+    }
+
     return true;
   };
   //#endregion Implement Hook
@@ -186,19 +234,23 @@ const FlightSchedulesPage = () => {
 
     setIsSubmitting(true);
 
+    console.log("FormData before submission:", formData); // Debug
     const payload = {
       Id: isEditing ? editingId : 0,
-      airline_id: parseInt(formData.airlineId),
-      departure_airport_id: parseInt(formData.departureAirportId),
-      arrival_airport_id: parseInt(formData.arrivalAirportId),
-      plane_id: parseInt(formData.aircraftId),
-      departure_time: new Date(formData.departureTime).toISOString(),
-      arrival_time: new Date(formData.arrivalTime).toISOString(),
-      stops: parseInt(formData.stops),
-      price: parseFloat(formData.price),
-      flight_class: formData.flightClass,
-      available_seats: parseInt(formData.availableSeats),
+      AirlineId: parseInt(formData.airlineId),
+      DepartureAirportId: parseInt(formData.departureAirportId),
+      ArrivalAirportId: parseInt(formData.arrivalAirportId),
+      PlaneId: parseInt(formData.aircraftId),
+      DepartureTime: new Date(formData.departureTime).toISOString(),
+      ArrivalTime: new Date(formData.arrivalTime).toISOString(),
+      Stops: parseInt(formData.stops),
+      Price: parseFloat(formData.price),
+      flight_class: formData.flightClass || "Economy", // Đảm bảo có giá trị
+      AvailableSeats: parseInt(formData.availableSeats),
+      LastUpdate: null,
+      DynamicPrice: null,
     };
+    console.log("Payload sent:", JSON.stringify(payload, null, 2));
 
     try {
       if (isEditing) {
@@ -213,7 +265,13 @@ const FlightSchedulesPage = () => {
       await dispatch(getListFlightSchedules()).unwrap();
       closeModal();
     } catch (err) {
-      const errorMessage = err.message || "An error occurred!";
+      console.error("Error creating/updating flight schedule:", err);
+      let errorMessage = "An error occurred!";
+      if (typeof err === "object" && err.message) {
+        errorMessage = err.message;
+      } else if (err?.errors) {
+        errorMessage = Object.values(err.errors).flat().join(", ");
+      }
       toast.error(
         `Failure: ${
           isEditing ? "Update failed - " : "Creation failed - "
@@ -271,7 +329,7 @@ const FlightSchedulesPage = () => {
       arrivalTime: "",
       stops: "",
       price: "",
-      flightClass: "",
+      flightClass: "Economy", // Đặt mặc định là "Economy"
       availableSeats: "",
     });
   };
@@ -338,126 +396,134 @@ const FlightSchedulesPage = () => {
             <button
               onClick={openModal}
               className="bg-black text-white px-4 py-2 rounded hover:bg-gray-800"
-              disabled={loading || isSubmitting}
+              disabled={flightScheduleLoading || isSubmitting}
             >
               CREATE FLIGHT SCHEDULE
             </button>
           </div>
 
-          {loading && <p className="p-4 text-center">Loading...</p>}
-          {error && (
-            <p className="p-4 text-red-600 text-center">Error: {error}</p>
+          {flightScheduleLoading && (
+            <p className="p-4 text-center">Loading flight schedules...</p>
           )}
-          {displayedFlightSchedules.length === 0 && !loading && !error && (
-            <p className="p-4 text-center">No flight schedules found.</p>
+          {(flightScheduleError || airlineError || airportError) && (
+            <p className="p-4 text-red-600 text-center">
+              Error: {flightScheduleError || airlineError || airportError}
+            </p>
           )}
-          {displayedFlightSchedules.length > 0 && !loading && !error && (
-            <div className="bg-white shadow rounded-lg overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
-                      ID
-                    </th>
-                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
-                      Airline
-                    </th>
-                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
-                      Departure Airport
-                    </th>
-                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
-                      Arrival Airport
-                    </th>
-                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
-                      Aircraft
-                    </th>
-                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
-                      Departure Time
-                    </th>
-                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
-                      Arrival Time
-                    </th>
-                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
-                      Price
-                    </th>
-                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
-                      Flight Class
-                    </th>
-                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
-                      Available Seats
-                    </th>
-                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {displayedFlightSchedules.map((schedule) => (
-                    <tr
-                      key={
-                        schedule.id || Math.random().toString(36).substr(2, 9)
-                      }
-                    >
-                      <td className="px-2 py-4 whitespace-nowrap">
-                        {schedule.id || "N/A"}
-                      </td>
-                      <td className="px-2 py-4 whitespace-nowrap">
-                        {schedule.airline?.name || "N/A"}
-                      </td>
-                      <td className="px-2 py-4 whitespace-nowrap">
-                        {schedule.departure_airport?.name || "N/A"}
-                      </td>
-                      <td className="px-2 py-4 whitespace-nowrap">
-                        {schedule.arrival_airport?.name || "N/A"}
-                      </td>
-                      <td className="px-2 py-4 whitespace-nowrap">
-                        {schedule.aircraft?.name || "N/A"}
-                      </td>
-                      <td className="px-2 py-4 whitespace-nowrap">
-                        {schedule.departure_time &&
-                        !isNaN(new Date(schedule.departure_time).getTime())
-                          ? new Date(schedule.departure_time).toLocaleString()
-                          : "N/A"}
-                      </td>
-                      <td className="px-2 py-4 whitespace-nowrap">
-                        {schedule.arrival_time &&
-                        !isNaN(new Date(schedule.arrival_time).getTime())
-                          ? new Date(schedule.arrival_time).toLocaleString()
-                          : "N/A"}
-                      </td>
-                      <td className="px-2 py-4 whitespace-nowrap">
-                        ${schedule.price?.toFixed(2) || "N/A"}
-                      </td>
-                      <td className="px-2 py-4 whitespace-nowrap">
-                        {schedule.flight_class || "N/A"}
-                      </td>
-                      <td className="px-2 py-4 whitespace-nowrap">
-                        {schedule.available_seats || "N/A"}
-                      </td>
-                      <td className="px-2 py-4 whitespace-nowrap">
-                        <Button
-                          primary
-                          className="px-3 py-1 rounded mr-2"
-                          onClick={() => handleEdit(schedule)}
-                          disabled={loading || isSubmitting}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          danger
-                          className="px-3 py-1 rounded"
-                          onClick={() => handleDelete(schedule.id)}
-                          disabled={loading || isSubmitting}
-                        >
-                          Delete
-                        </Button>
-                      </td>
+          {displayedFlightSchedules.length === 0 &&
+            !flightScheduleLoading &&
+            !flightScheduleError && (
+              <p className="p-4 text-center">No flight schedules found.</p>
+            )}
+          {displayedFlightSchedules.length > 0 &&
+            !flightScheduleLoading &&
+            !flightScheduleError && (
+              <div className="bg-white shadow rounded-lg overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
+                        ID
+                      </th>
+                      <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                        Airline
+                      </th>
+                      <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
+                        Departure Airport
+                      </th>
+                      <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
+                        Arrival Airport
+                      </th>
+                      <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                        Aircraft
+                      </th>
+                      <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
+                        Departure Time
+                      </th>
+                      <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
+                        Arrival Time
+                      </th>
+                      <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
+                        Price
+                      </th>
+                      <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                        Flight Class
+                      </th>
+                      <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                        Available Seats
+                      </th>
+                      <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
+                        Actions
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {displayedFlightSchedules.map((schedule) => (
+                      <tr
+                        key={
+                          schedule.id || Math.random().toString(36).substr(2, 9)
+                        }
+                      >
+                        <td className="px-2 py-4 whitespace-nowrap">
+                          {schedule.id || "N/A"}
+                        </td>
+                        <td className="px-2 py-4 whitespace-nowrap">
+                          {schedule.airline?.name || "N/A"}
+                        </td>
+                        <td className="px-2 py-4 whitespace-nowrap">
+                          {schedule.departure_airport?.name || "N/A"}
+                        </td>
+                        <td className="px-2 py-4 whitespace-nowrap">
+                          {schedule.arrival_airport?.name || "N/A"}
+                        </td>
+                        <td className="px-2 py-4 whitespace-nowrap">
+                          {schedule.aircraft?.name || "N/A"}
+                        </td>
+                        <td className="px-2 py-4 whitespace-nowrap">
+                          {schedule.departure_time &&
+                          !isNaN(new Date(schedule.departure_time).getTime())
+                            ? new Date(schedule.departure_time).toLocaleString()
+                            : "N/A"}
+                        </td>
+                        <td className="px-2 py-4 whitespace-nowrap">
+                          {schedule.arrival_time &&
+                          !isNaN(new Date(schedule.arrival_time).getTime())
+                            ? new Date(schedule.arrival_time).toLocaleString()
+                            : "N/A"}
+                        </td>
+                        <td className="px-2 py-4 whitespace-nowrap">
+                          ${schedule.price?.toFixed(2) || "N/A"}
+                        </td>
+                        <td className="px-2 py-4 whitespace-nowrap">
+                          {schedule.flight_class || "N/A"}
+                        </td>
+                        <td className="px-2 py-4 whitespace-nowrap">
+                          {schedule.available_seats || "N/A"}
+                        </td>
+                        <td className="px-2 py-4 whitespace-nowrap">
+                          <Button
+                            primary
+                            className="px-3 py-1 rounded mr-2"
+                            onClick={() => handleEdit(schedule)}
+                            disabled={flightScheduleLoading || isSubmitting}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            danger
+                            className="px-3 py-1 rounded"
+                            onClick={() => handleDelete(schedule.id)}
+                            disabled={flightScheduleLoading || isSubmitting}
+                          >
+                            Delete
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
         </div>
       </main>
 
@@ -471,55 +537,122 @@ const FlightSchedulesPage = () => {
               <div className="grid grid-cols-1 gap-4">
                 <select
                   name="airlineId"
-                  value={formData.airlineId}
+                  value={formData.airlineId || ""} // Đảm bảo giá trị mặc định là chuỗi rỗng
                   onChange={handleInputChange}
                   className="border border-gray-300 rounded px-3 py-2 w-full"
+                  disabled={airlineLoading || isSubmitting}
                 >
                   <option value="">Select Airline</option>
-                  {airlines.map((airline) => (
-                    <option key={airline.Id} value={airline.Id}>
-                      {airline.Name}
+                  {Array.isArray(airlines) ? (
+                    airlines.length > 0 ? (
+                      airlines
+                        .filter(
+                          (airline) =>
+                            airline.id !== 0 && airline.name !== "string"
+                        ) // Loại bỏ dữ liệu mẫu
+                        .map((airline) => (
+                          <option key={airline.id} value={airline.id}>
+                            {airline.name || `Airline ${airline.id}`}
+                          </option>
+                        ))
+                    ) : (
+                      <option disabled>
+                        {airlineLoading
+                          ? "Loading airlines..."
+                          : "No airlines available"}
+                      </option>
+                    )
+                  ) : (
+                    <option disabled>
+                      {airlineError || "Invalid airline data"}
                     </option>
-                  ))}
+                  )}
                 </select>
                 <select
                   name="departureAirportId"
-                  value={formData.departureAirportId}
+                  value={formData.departureAirportId || ""} // Đảm bảo giá trị mặc định là chuỗi rỗng
                   onChange={handleInputChange}
                   className="border border-gray-300 rounded px-3 py-2 w-full"
+                  disabled={airportLoading || isSubmitting}
                 >
                   <option value="">Select Departure Airport</option>
-                  {airports.map((airport) => (
-                    <option key={airport.Id} value={airport.Id}>
-                      {airport.Name}
+                  {Array.isArray(airports) ? (
+                    airports.length > 0 ? (
+                      airports.map((airport) => (
+                        <option key={airport.id} value={airport.id}>
+                          {airport.name || `Airport ${airport.id}`}
+                        </option>
+                      ))
+                    ) : (
+                      <option disabled>
+                        {airportLoading
+                          ? "Loading airports..."
+                          : "No airports available"}
+                      </option>
+                    )
+                  ) : (
+                    <option disabled>
+                      {airportError || "Invalid airport data"}
                     </option>
-                  ))}
+                  )}
                 </select>
                 <select
                   name="arrivalAirportId"
-                  value={formData.arrivalAirportId}
+                  value={formData.arrivalAirportId || ""} // Đảm bảo giá trị mặc định là chuỗi rỗng
                   onChange={handleInputChange}
                   className="border border-gray-300 rounded px-3 py-2 w-full"
+                  disabled={airportLoading || isSubmitting}
                 >
                   <option value="">Select Arrival Airport</option>
-                  {airports.map((airport) => (
-                    <option key={airport.Id} value={airport.Id}>
-                      {airport.Name}
+                  {Array.isArray(airports) ? (
+                    airports.length > 0 ? (
+                      airports.map((airport) => (
+                        <option key={airport.id} value={airport.id}>
+                          {airport.name || `Airport ${airport.id}`}
+                        </option>
+                      ))
+                    ) : (
+                      <option disabled>
+                        {airportLoading
+                          ? "Loading airports..."
+                          : "No airports available"}
+                      </option>
+                    )
+                  ) : (
+                    <option disabled>
+                      {airportError || "Invalid airport data"}
                     </option>
-                  ))}
+                  )}
                 </select>
                 <select
                   name="aircraftId"
-                  value={formData.aircraftId}
+                  value={formData.aircraftId || ""}
                   onChange={handleInputChange}
                   className="border border-gray-300 rounded px-3 py-2 w-full"
+                  disabled={
+                    flightScheduleLoading || isSubmitting || !formData.airlineId
+                  }
                 >
                   <option value="">Select Aircraft</option>
-                  {aircraftsByAirline.map((aircraft) => (
-                    <option key={aircraft.Id} value={aircraft.Id}>
-                      {aircraft.Name}
+                  {Array.isArray(aircraftsByAirline) ? (
+                    aircraftsByAirline.length > 0 ? (
+                      aircraftsByAirline.map((aircraft) => (
+                        <option key={aircraft.id} value={aircraft.id}>
+                          {aircraft.name || `Aircraft ${aircraft.id}`}
+                        </option>
+                      ))
+                    ) : (
+                      <option disabled>
+                        {formData.airlineId
+                          ? "No aircrafts available"
+                          : "Select an airline first"}
+                      </option>
+                    )
+                  ) : (
+                    <option disabled>
+                      {flightScheduleError || "Invalid aircraft data"}
                     </option>
-                  ))}
+                  )}
                 </select>
                 <input
                   type="datetime-local"
@@ -527,6 +660,7 @@ const FlightSchedulesPage = () => {
                   value={formData.departureTime}
                   onChange={handleInputChange}
                   className="border border-gray-300 rounded px-3 py-2 w-full"
+                  disabled={flightScheduleLoading || isSubmitting}
                 />
                 <input
                   type="datetime-local"
@@ -534,6 +668,7 @@ const FlightSchedulesPage = () => {
                   value={formData.arrivalTime}
                   onChange={handleInputChange}
                   className="border border-gray-300 rounded px-3 py-2 w-full"
+                  disabled={flightScheduleLoading || isSubmitting}
                 />
                 <input
                   type="number"
@@ -542,6 +677,7 @@ const FlightSchedulesPage = () => {
                   onChange={handleInputChange}
                   className="border border-gray-300 rounded px-3 py-2 w-full"
                   placeholder="Stops"
+                  disabled={flightScheduleLoading || isSubmitting}
                 />
                 <input
                   type="number"
@@ -551,14 +687,16 @@ const FlightSchedulesPage = () => {
                   onChange={handleInputChange}
                   className="border border-gray-300 rounded px-3 py-2 w-full"
                   placeholder="Price"
+                  disabled={flightScheduleLoading || isSubmitting}
                 />
                 <select
                   name="flightClass"
-                  value={formData.flightClass}
+                  value={formData.flightClass || "Economy"} // Mặc định "Economy" nếu rỗng
                   onChange={handleInputChange}
                   className="border border-gray-300 rounded px-3 py-2 w-full"
+                  disabled={flightScheduleLoading || isSubmitting}
+                  required
                 >
-                  <option value="">Select Flight Class</option>
                   <option value="Economy">Economy</option>
                   <option value="Business">Business</option>
                   <option value="First">First</option>
@@ -570,6 +708,7 @@ const FlightSchedulesPage = () => {
                   onChange={handleInputChange}
                   className="border border-gray-300 rounded px-3 py-2 w-full"
                   placeholder="Available Seats"
+                  disabled={flightScheduleLoading || isSubmitting}
                 />
               </div>
               <div className="mt-6 flex justify-end space-x-4">

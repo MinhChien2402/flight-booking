@@ -7,9 +7,10 @@ import { toast } from "react-toastify";
 import Header from "../../components/header/Header";
 import Footer from "../../components/footer/Footer";
 // Others
-
 import { BiArrowBack } from "react-icons/bi";
+import { resetReservationDetailState } from "../../ultis/redux/reservationDetailSlice";
 import { getReservationDetail } from "../../thunk/reservationDetailThunk";
+
 // Styles, images, icons
 
 const ReservationDetailPage = () => {
@@ -32,6 +33,8 @@ const ReservationDetailPage = () => {
 
   //#region Implement Hook
   useEffect(() => {
+    // Reset state khi vào trang
+    dispatch(resetReservationDetailState());
     if (id) {
       dispatch(getReservationDetail(id))
         .unwrap()
@@ -41,8 +44,10 @@ const ReservationDetailPage = () => {
           );
           navigate("/reservations"); // Quay lại nếu lỗi
         });
+    } else {
+      navigate("/reservations"); // Quay lại nếu không có id
     }
-  }, [dispatch, id]);
+  }, [dispatch, id, navigate]);
   //#endregion Implement Hook
 
   //#region Handle Function

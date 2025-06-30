@@ -14,9 +14,10 @@ const HomePage = () => {
   //#endregion Declare Hook
 
   //#region Selector
-  const { loading: airportsLoading, error: airportsError } = useSelector(
-    (state) => state.airport
-  );
+  const airportState = useSelector(
+    (state) => state.airports || { loading: false, error: null }
+  ); // Sửa từ state.airport thành state.airports
+  const { loading: airportsLoading, error: airportsError } = airportState;
   //#endregion Selector
 
   //#region Declare State

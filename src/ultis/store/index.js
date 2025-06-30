@@ -15,7 +15,7 @@ import pdfReducer from '../redux/pdfSlice';
 export const store = configureStore({
     reducer: {
         airline: airlineReducer,
-        airport: airportReducer,
+        airports: airportReducer,
         country: countryReducer,
         aircraft: aircraftReducer,
         flightSchedule: flightScheduleReducer,

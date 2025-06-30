@@ -30,42 +30,41 @@ const RegisterPage = () => {
   const handleRegister = async (e) => {
     e.preventDefault();
 
-    const fullName = e.target.fullName.value.trim();
     const email = e.target.email.value.trim();
     const password = e.target.password.value.trim();
-    const address = e.target.address.value.trim();
-    const phoneNumber = e.target.phoneNumber.value.trim();
-    const PreferredCreditCard = e.target.PreferredCreditCard.value.trim();
+    const fullName = e.target.fullName?.value?.trim() || null; // Tùy chọn
 
-    if (
-      !fullName ||
-      !email ||
-      !password ||
-      !address ||
-      !phoneNumber ||
-      !PreferredCreditCard
-    ) {
-      toast.error("Please fill in all fields.");
+    if (!email || !password) {
+      toast.error("Please fill in required fields: Email and Password.");
       return;
     }
 
     const newUser = {
-      fullName,
       email,
       password,
-      role: "customer",
-      address,
-      phoneNumber,
-      PreferredCreditCard,
+      fullName,
+      role: "customer", // Mặc định là customer
+      address: null,
+      phoneNumber: null,
+      PreferredCreditCard: null,
+      sex: null,
+      age: null,
     };
+
+    if (process.env.NODE_ENV === "development") {
+      console.log("Registering user with data:", newUser);
+    }
 
     try {
       const result = await dispatch(registerUser(newUser)).unwrap();
+      if (process.env.NODE_ENV === "development") {
+        console.log("Registration result:", result);
+      }
       toast.success(result.message || "Registration successful!");
       setTimeout(() => navigate("/login"), 1000); // Delay để hiển thị toast
     } catch (err) {
       console.error("Registration error:", err);
-      toast.error(err.message || "Registration failed.");
+      toast.error(err.message || "Registration failed. Please try again.");
     }
   };
   //#endregion Handle Function
@@ -89,18 +88,17 @@ const RegisterPage = () => {
           </h2>
 
           <div>
-            <label className="block text-gray-700">Full Name</label>
+            <label className="block text-gray-700">Full Name (Optional)</label>
             <input
               name="fullName"
               type="text"
               placeholder="Full Name"
               className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
               disabled={loading}
             />
           </div>
           <div>
-            <label className="block text-gray-700">Email</label>
+            <label className="block text-gray-700">Email *</label>
             <input
               name="email"
               type="email"
@@ -111,7 +109,7 @@ const RegisterPage = () => {
             />
           </div>
           <div>
-            <label className="block text-gray-700">Password</label>
+            <label className="block text-gray-700">Password *</label>
             <input
               name="password"
               type="password"
@@ -129,12 +127,15 @@ const RegisterPage = () => {
           >
             {loading ? "Registering..." : "Register"}
           </button>
-
           <p className="text-center text-sm">
             Already have an account?{" "}
             <Link to="/login" className="text-blue-600 hover:underline">
               Login here
             </Link>
+          </p>
+          <p className="text-center text-xs text-gray-500">
+            Additional details (address, phone, etc.) can be updated in your
+            profile after registration.
           </p>
         </form>
       </div>
