@@ -1,15 +1,15 @@
+// Libs
 import { createSlice } from "@reduxjs/toolkit";
-import { getUserReservations } from "../../thunk/userReservationThunk"; // Cập nhật đường dẫn
+import { getUserReservations } from "../../thunk/userReservationThunk";
 
 const userReservationSlice = createSlice({
-    name: "userReservation", // Đổi từ userBooking
+    name: "userReservation",
     initialState: {
-        reservations: [], // Đổi từ bookings
+        reservations: [],
         loading: false,
         error: null,
     },
     reducers: {
-        // Reset trạng thái đặt chỗ
         resetUserReservationState: (state) => {
             state.reservations = [];
             state.loading = false;
@@ -24,14 +24,16 @@ const userReservationSlice = createSlice({
             })
             .addCase(getUserReservations.fulfilled, (state, action) => {
                 state.loading = false;
-                state.reservations = action.payload;
+                state.reservations = action.payload || [];
+                console.log("Reservations updated:", state.reservations);
             })
             .addCase(getUserReservations.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
+                console.error("Reservations error:", action.payload);
             });
     },
 });
 
-export const { resetUserReservationState } = userReservationSlice.actions; // Đổi từ resetUserBookingState
+export const { resetUserReservationState } = userReservationSlice.actions;
 export default userReservationSlice.reducer;

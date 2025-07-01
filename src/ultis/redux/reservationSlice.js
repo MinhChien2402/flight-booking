@@ -1,11 +1,12 @@
 import { createSlice } from "@reduxjs/toolkit";
-import { createReservation } from "../../thunk/reservationThunk"
+import { blockReservation, createReservation } from "../../thunk/reservationThunk"
 const reservationSlice = createSlice({
     name: "reservation",
     initialState: {
         status: "idle",
         error: null,
         currentReservation: null,
+        blockedReservation: null
     },
     reducers: {},
     extraReducers: (builder) => {
@@ -20,6 +21,17 @@ const reservationSlice = createSlice({
             .addCase(createReservation.rejected, (state, action) => {
                 state.status = "failed";
                 state.error = action.payload || "Failed to create reservation";
+            })
+            .addCase(blockReservation.pending, (state) => {
+                state.status = "loading";
+            })
+            .addCase(blockReservation.fulfilled, (state, action) => {
+                state.status = "succeeded";
+                state.blockedReservation = action.payload;
+            })
+            .addCase(blockReservation.rejected, (state, action) => {
+                state.status = "failed";
+                state.error = action.payload;
             });
     },
 });

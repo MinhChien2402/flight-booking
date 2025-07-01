@@ -4,7 +4,6 @@ import { createSlice } from "@reduxjs/toolkit";
 import { getReservationDetail } from "../../thunk/reservationDetailThunk";
 
 // Styles, images, icons
-
 const reservationDetailSlice = createSlice({
     //#region Slice Configuration
     name: "reservationDetail",
@@ -35,6 +34,7 @@ const reservationDetailSlice = createSlice({
             .addCase(getReservationDetail.fulfilled, (state, action) => {
                 state.loading = false;
                 state.reservationDetail = action.payload;
+                console.log("Reservation detail updated:", action.payload); // Debug
             })
             .addCase(getReservationDetail.rejected, (state, action) => {
                 state.loading = false;

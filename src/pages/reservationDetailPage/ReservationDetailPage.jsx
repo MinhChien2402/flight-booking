@@ -12,7 +12,6 @@ import { resetReservationDetailState } from "../../ultis/redux/reservationDetail
 import { getReservationDetail } from "../../thunk/reservationDetailThunk";
 
 // Styles, images, icons
-
 const ReservationDetailPage = () => {
   //#region Declare Hook
   const { id } = useParams(); // Lấy reservationId từ URL
@@ -38,6 +37,9 @@ const ReservationDetailPage = () => {
     if (id) {
       dispatch(getReservationDetail(id))
         .unwrap()
+        .then(() => {
+          console.log("Reservation detail fetched:", reservationDetail); // Debug
+        })
         .catch((error) => {
           toast.error(
             `Failed to fetch reservation details: ${error.message || error}`
@@ -57,11 +59,10 @@ const ReservationDetailPage = () => {
   if (!reservationDetail)
     return <div className="p-4">Reservation not found</div>;
 
-  const ticket = reservationDetail.Tickets?.[0] || {}; // Lấy ticket đầu tiên (giả định 1 reservation có 1 ticket chính)
-  const departureTime = ticket.DepartureTime
-    ? new Date(ticket.DepartureTime)
-    : null;
-  const arrivalTime = ticket.ArrivalTime ? new Date(ticket.ArrivalTime) : null;
+  const ticket = reservationDetail.Tickets?.[0] || {}; // Lấy ticket đầu tiên
+  const departureTime = ticket.Departure ? new Date(ticket.Departure) : null;
+  const arrivalTime = ticket.Arrival ? new Date(ticket.Arrival) : null;
+  const status = reservationDetail.Status || "N/A"; // Hiển thị trạng thái
 
   const handleBack = () => {
     navigate(-1);
@@ -92,25 +93,23 @@ const ReservationDetailPage = () => {
           {/* Header flight */}
           <div className="flex justify-between items-center border-b px-6 py-4">
             <h3 className="text-blue-600 font-semibold text-lg">
-              {ticket.DepartureAirport?.Name || "N/A"} -{" "}
-              {ticket.ArrivalAirport?.Name || "N/A"}
+              {ticket.From || "N/A"} - {ticket.To || "N/A"}
             </h3>
-            <button className="bg-red-500 text-white px-4 py-1 rounded text-sm">
-              View Baggage
-            </button>
+            <span className="text-sm text-gray-600">Status: {status}</span>{" "}
+            {/* Thêm trạng thái */}
           </div>
 
           {/* Logo + flight info */}
           <div className="flex items-center justify-between px-6 py-4">
             <div className="flex items-center gap-3">
               <img
-                src={ticket.Airline?.LogoUrl || "/default-logo.png"} // Giả định LogoUrl từ BE
-                alt={ticket.Airline?.Name || "Unknown Airline"}
+                src={ticket.Airline?.LogoUrl || "/default-logo.png"}
+                alt={ticket.Airline || "Unknown Airline"}
                 className="w-12 h-12 object-contain"
               />
               <div>
                 <p className="font-medium text-gray-800">
-                  {ticket.Airline?.Name || "Unknown Airline"}
+                  {ticket.Airline || "Unknown Airline"}
                 </p>
                 <p className="text-sm text-gray-600">
                   Flight: {ticket.FlightNumber || "N/A"}
@@ -143,12 +142,8 @@ const ReservationDetailPage = () => {
                   year: "numeric",
                 }) || "N/A"}
               </p>
-              <p className="font-semibold">
-                {ticket.DepartureAirport?.Code || "N/A"}
-              </p>
-              <p className="text-gray-500 text-xs">
-                {ticket.DepartureAirport?.Name || "N/A"}
-              </p>
+              <p className="font-semibold">{ticket.From || "N/A"}</p>
+              <p className="text-gray-500 text-xs">{ticket.From || "N/A"}</p>
             </div>
 
             {/* Line with stop */}
@@ -174,12 +169,8 @@ const ReservationDetailPage = () => {
                   year: "numeric",
                 }) || "N/A"}
               </p>
-              <p className="font-semibold">
-                {ticket.ArrivalAirport?.Code || "N/A"}
-              </p>
-              <p className="text-gray-500 text-xs">
-                {ticket.ArrivalAirport?.Name || "N/A"}
-              </p>
+              <p className="font-semibold">{ticket.To || "N/A"}</p>
+              <p className="text-gray-500 text-xs">{ticket.To || "N/A"}</p>
             </div>
           </div>
         </div>

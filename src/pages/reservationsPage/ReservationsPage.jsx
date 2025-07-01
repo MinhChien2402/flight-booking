@@ -13,7 +13,6 @@ import BookedTicketsTable from "../../components/bookedTicketTable/BookedTicketT
 import ReservationDetailModal from "../../components/reservationDetailModal/ReservationDetailModal";
 // Others
 import { resetReservationDetailState } from "../../ultis/redux/reservationDetailSlice";
-import { getUserReservations } from "../../thunk/userReservationThunk";
 import { downloadReservationPdf } from "../../thunk/pdfGenerationThunk";
 import { getReservationDetail } from "../../thunk/reservationDetailThunk";
 // Styles, images, icons
@@ -52,15 +51,6 @@ const ReservationsPage = () => {
   useEffect(() => {
     // Reset reservation detail state khi vào trang
     dispatch(resetReservationDetailState());
-    dispatch(getUserReservations())
-      .unwrap()
-      .then((payload) => {
-        console.log("API Response:", payload);
-      })
-      .catch((error) => {
-        console.log("API Error:", error);
-        toast.error(`Failed to fetch reservations: ${error.message || error}`);
-      });
   }, [dispatch]);
 
   useEffect(() => {
@@ -119,12 +109,16 @@ const ReservationsPage = () => {
   };
 
   const mappedReservations = useMemo(() => {
-    console.log("Raw reservations:", reservations);
-    if (!Array.isArray(reservations)) return [];
-    return reservations.flatMap((reservation) =>
-      (reservation.Tickets || []).map((ticket) => {
-        const departureTime = new Date(ticket.DepartureTime || "");
-        const arrivalTime = new Date(ticket.ArrivalTime || "");
+    console.log("Raw reservations:", reservations); // Log raw data
+    if (!Array.isArray(reservations)) {
+      console.warn("Reservations is not an array:", reservations);
+      return [];
+    }
+    const result = reservations.flatMap((reservation) => {
+      console.log("Processing reservation:", reservation); // Log từng reservation
+      return (reservation.tickets || []).map((ticket, index) => {
+        const departureTime = new Date(ticket.departureTime || "");
+        const arrivalTime = new Date(ticket.arrivalTime || "");
         const durationMs = arrivalTime - departureTime;
         const durationHours = Math.floor(durationMs / (1000 * 60 * 60));
         const durationMinutes = Math.floor(
@@ -135,10 +129,10 @@ const ReservationsPage = () => {
           : `${durationHours}h ${durationMinutes}m`;
 
         return {
-          ReservationId: reservation.ReservationId || "N/A",
-          Airline: ticket.Airline?.Name || "N/A",
-          From: ticket.DepartureAirport?.Name || "N/A",
-          To: ticket.ArrivalAirport?.Name || "N/A",
+          reservationId: reservation.reservationId || "N/A",
+          Airline: ticket.airline?.Name || "N/A",
+          From: ticket.departureAirport?.Name || "N/A",
+          To: ticket.arrivalAirport?.Name || "N/A",
           Departure:
             departureTime.toLocaleDateString("en-GB", {
               day: "2-digit",
@@ -152,11 +146,13 @@ const ReservationsPage = () => {
               year: "numeric",
             }) || "N/A",
           Duration: duration,
-          BookedOn: reservation.BookedOn || "N/A",
-          TotalPrice: reservation.TotalPrice || 0,
+          BookedOn: reservation.bookedOn || "N/A",
+          TotalPrice: reservation.totalPrice || 0,
         };
-      })
-    );
+      });
+    });
+    console.log("Mapped reservations result:", result); // Log kết quả cuối cùng
+    return result;
   }, [reservations]);
   //#endregion Handle Function
 

@@ -3,13 +3,13 @@ import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
 // Components, Layouts, Pages
+import Button from "../../components/button/Button";
 // Others
+import { getReservationDetail } from "../../thunk/reservationDetailThunk";
+import { resetReservationDetailState } from "../../ultis/redux/reservationDetailSlice";
 
 // Styles, images, icons
 import "react-toastify/dist/ReactToastify.css";
-import Button from "../../components/button/Button"; // Thêm Button component để nhất quán
-import { getReservationDetail } from "../../thunk/reservationDetailThunk";
-import { resetReservationDetailState } from "../../ultis/redux/reservationDetailSlice";
 
 const ReservationDetailModal = ({ reservationId, onClose }) => {
   //#region Declare Hook
@@ -109,7 +109,7 @@ const ReservationDetailModal = ({ reservationId, onClose }) => {
                 {reservationDetail.ConfirmationNumber || "N/A"}
               </p>
               <p>
-                <strong>Status:</strong> {reservationDetail.Status}
+                <strong>Status:</strong> {reservationDetail.Status || "N/A"}
               </p>
               <p>
                 <strong>Total Price:</strong> $
@@ -117,7 +117,7 @@ const ReservationDetailModal = ({ reservationId, onClose }) => {
               </p>
               <p>
                 <strong>Booked On:</strong>{" "}
-                {formatDate(reservationDetail.ReservationDate) || "N/A"}
+                {formatDate(reservationDetail.BookedOn) || "N/A"}
               </p>
             </div>
             <div className="tickets-section mb-4">
@@ -126,46 +126,43 @@ const ReservationDetailModal = ({ reservationId, onClose }) => {
                 <div key={index} className="mb-4 p-2 border rounded">
                   <div className="text-center mb-2">
                     <p className="font-bold">
-                      Trip to {ticket.ArrivalAirport?.Name || "N/A"} -{" "}
-                      {formatDate(ticket.DepartureTime)} to{" "}
-                      {formatDate(ticket.ArrivalTime)}
+                      Trip to {ticket.To || "N/A"} -{" "}
+                      {formatDate(ticket.Departure)} to{" "}
+                      {formatDate(ticket.Arrival)}
                     </p>
                   </div>
                   <table className="w-full">
                     <tbody>
                       <tr>
                         <td className="font-bold">Airline:</td>
-                        <td>{ticket.Airline?.Name || "N/A"}</td>
+                        <td>{ticket.Airline || "N/A"}</td>
                       </tr>
                       <tr>
                         <td className="font-bold">From:</td>
-                        <td>{ticket.DepartureAirport?.Name || "N/A"}</td>
+                        <td>{ticket.From || "N/A"}</td>
                       </tr>
                       <tr>
                         <td className="font-bold">To:</td>
-                        <td>{ticket.ArrivalAirport?.Name || "N/A"}</td>
+                        <td>{ticket.To || "N/A"}</td>
                       </tr>
                       <tr>
                         <td className="font-bold">Departure:</td>
                         <td>
-                          {formatDate(ticket.DepartureTime)}{" "}
-                          {formatTime(ticket.DepartureTime)}
+                          {formatDate(ticket.Departure)}{" "}
+                          {formatTime(ticket.Departure)}
                         </td>
                       </tr>
                       <tr>
                         <td className="font-bold">Arrival:</td>
                         <td>
-                          {formatDate(ticket.ArrivalTime)}{" "}
-                          {formatTime(ticket.ArrivalTime)}
+                          {formatDate(ticket.Arrival)}{" "}
+                          {formatTime(ticket.Arrival)}
                         </td>
                       </tr>
                       <tr>
                         <td className="font-bold">Duration:</td>
                         <td>
-                          {calculateDuration(
-                            ticket.DepartureTime,
-                            ticket.ArrivalTime
-                          )}
+                          {calculateDuration(ticket.Departure, ticket.Arrival)}
                         </td>
                       </tr>
                       <tr>

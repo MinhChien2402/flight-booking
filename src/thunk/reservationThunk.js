@@ -21,3 +21,21 @@ export const createReservation = createAsyncThunk(
         }
     }
 );
+
+
+export const blockReservation = createAsyncThunk(
+    "reservation/blockReservation",
+    async (reservationData, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem("token");
+            if (!token) return rejectWithValue("No authentication token found");
+
+            const response = await axiosInstance.post("/Reservation/block", reservationData, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            return response.data;
+        } catch (error) {
+            return rejectWithValue(error.response?.data?.message || "Failed to block reservation");
+        }
+    }
+);

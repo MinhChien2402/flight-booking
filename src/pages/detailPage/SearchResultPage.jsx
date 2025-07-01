@@ -3,6 +3,7 @@ import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
+
 // Components
 import Header from "../../components/header/Header";
 import FlightSearchForm from "../../components/flightSearchForm/FlightSearchForm";
@@ -10,12 +11,16 @@ import Button from "../../components/button/Button";
 import FlightDetails from "../../components/flightDetails/FlightDetails";
 import FlightDetailsHeader from "../../components/flightDetails/FlightDetailsHeader";
 import Footer from "../../components/footer/Footer";
+
 // Others
 import { searchFlightSchedules } from "../../thunk/flightScheduleThunk";
 import { getAirlines } from "../../thunk/airlineThunk";
 import { getListAirports } from "../../thunk/airportThunk";
+import { blockReservation } from "../../thunk/reservationThunk";
+
 // Icons
 import { BiArrowBack } from "react-icons/bi";
+import "react-toastify/dist/ReactToastify.css";
 
 const SearchResultPage = () => {
   //#region Declare Hook
@@ -156,7 +161,8 @@ const SearchResultPage = () => {
           })
         : "N/A",
       departDate: departureTime ? departureTime.toLocaleDateString() : "N/A",
-      from: departureAirport.code || departureAirport.name || "N/A", // Sử dụng name nếu code không có
+      departureTime: departureTime,
+      from: departureAirport.code || departureAirport.name || "N/A",
       arriveTime: arrivalTime
         ? arrivalTime.toLocaleTimeString([], {
             hour: "2-digit",
@@ -164,7 +170,7 @@ const SearchResultPage = () => {
           })
         : "N/A",
       arriveDate: arrivalTime ? arrivalTime.toLocaleDateString() : "N/A",
-      to: arrivalAirport.code || arrivalAirport.name || "N/A", // Sử dụng name nếu code không có
+      to: arrivalAirport.code || arrivalAirport.name || "N/A",
       duration:
         departureTime && arrivalTime
           ? `${Math.floor(
@@ -248,6 +254,70 @@ const SearchResultPage = () => {
     }
   };
 
+  const handleBlockTicket = async (ticketId) => {
+    const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+    if (!isLoggedIn) {
+      navigate("/login");
+      return;
+    }
+
+    try {
+      const ticket =
+        outboundTickets.find((t) => t.id === ticketId) ||
+        returnTickets.find((t) => t.id === ticketId);
+      if (!ticket) {
+        toast.error("Không tìm thấy vé!");
+        return;
+      }
+
+      const departureTime = new Date(
+        ticket.departureTime || ticket.DepartureTime
+      );
+      const daysDiff = (departureTime - new Date()) / (1000 * 60 * 60 * 24);
+
+      if (daysDiff < 14) {
+        toast.error(
+          "Không thể đặt vé tạm thời, ngày khởi hành trong vòng 2 tuần."
+        );
+        return;
+      }
+
+      console.log(`Blocking ticket with ID: ${ticketId}`);
+      const response = await dispatch(
+        blockReservation({ FlightScheduleId: ticketId })
+      ).unwrap();
+      console.log("Block response:", JSON.stringify(response, null, 2));
+
+      if (response?.message === "Reservation blocked") {
+        console.log(
+          "Calling toast.success for reservationId:",
+          response.reservationId
+        );
+        toast.success(
+          `Vé đã được đặt tạm thời! Mã đặt vé: ${response.reservationId}`,
+          {
+            autoClose: 5000,
+            position: "bottom-right",
+          }
+        );
+        setTimeout(() => {
+          console.log("Navigating to /reservations");
+          navigate("/reservations");
+        }, 2000);
+      } else {
+        console.log("Response invalid:", response);
+        toast.error(
+          `Không thể đặt vé tạm thời: ${
+            response?.message || "Lỗi không xác định"
+          }`
+        );
+      }
+    } catch (error) {
+      console.error("Block error details:", error);
+      toast.error(`Lỗi: ${error.message || "Đã có lỗi xảy ra"}`);
+    }
+  };
+
   const handleBookNow = () => {
     const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
     if (!isLoggedIn) {
@@ -259,7 +329,7 @@ const SearchResultPage = () => {
       memoizedSearchParams.TripType === "roundTrip" &&
       (!selectedOutboundTicket || !selectedReturnTicket)
     ) {
-      toast.error("Please choose both outbound trip and return trip tickets!");
+      toast.error("Vui lòng chọn vé cho cả chuyến đi và chuyến về!");
       return;
     }
 
@@ -382,8 +452,7 @@ const SearchResultPage = () => {
                         </div>
                         <div className="text-xs text-gray-600">
                           Original: {flight.originalPrice}
-                        </div>{" "}
-                        {/* Thêm giá gốc */}
+                        </div>
                         <div className="text-xs text-green-600">
                           {flight.refundable}
                         </div>
@@ -519,6 +588,10 @@ const SearchResultPage = () => {
               </h4>
               {outboundTickets.map((ticket) => {
                 const flight = formatFlightData(ticket);
+                const canBlock =
+                  flight.departureTime &&
+                  (flight.departureTime - new Date()) / (1000 * 60 * 60 * 24) >
+                    14;
                 return (
                   <div
                     key={flight.id}
@@ -585,9 +658,23 @@ const SearchResultPage = () => {
                           >
                             Select
                           </Button>
+                          {canBlock && (
+                            <Button
+                              className="text-xs px-2 py-1 w-[80px] bg-yellow-500 text-white hover:bg-yellow-600"
+                              onClick={() => handleBlockTicket(ticket.id)}
+                            >
+                              Block
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </div>
+                    {openDetails === flight.id && (
+                      <div className="border border-gray-300 rounded-md mt-2 overflow-hidden">
+                        <FlightDetailsHeader flight={flight} />
+                        <FlightDetails flight={flight} />
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -603,6 +690,11 @@ const SearchResultPage = () => {
                 </h4>
                 {returnTickets.map((ticket) => {
                   const flight = formatFlightData(ticket);
+                  const canBlock =
+                    flight.departureTime &&
+                    (flight.departureTime - new Date()) /
+                      (1000 * 60 * 60 * 24) >
+                      14;
                   return (
                     <div
                       key={flight.id}
@@ -654,7 +746,7 @@ const SearchResultPage = () => {
                           </div>
                         </div>
                         <div className="flex flex-col items-end w-1/5 text-right text-sm space-y-1">
-                          <div className="text-xs text-gray-500">Giá</div>
+                          <div className="text-xs text-gray-500">Price</div>
                           <div className="text-base font-bold text-gray-800">
                             {flight.price}
                           </div>
@@ -669,9 +761,23 @@ const SearchResultPage = () => {
                             >
                               Select
                             </Button>
+                            {canBlock && (
+                              <Button
+                                className="text-xs px-2 py-1 w-[80px] bg-yellow-500 text-white hover:bg-yellow-600"
+                                onClick={() => handleBlockTicket(ticket.id)}
+                              >
+                                Block
+                              </Button>
+                            )}
                           </div>
                         </div>
                       </div>
+                      {openDetails === flight.id && (
+                        <div className="border border-gray-300 rounded-md mt-2 overflow-hidden">
+                          <FlightDetailsHeader flight={flight} />
+                          <FlightDetails flight={flight} />
+                        </div>
+                      )}
                     </div>
                   );
                 })}

@@ -4,20 +4,21 @@ import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
 // Components, Layouts, Pages
 // Others
+import { getUserReservations } from "../../thunk/userReservationThunk";
+
 // Styles, images, icons
 import { BiDownload } from "react-icons/bi";
 import "react-toastify/dist/ReactToastify.css";
-import { getUserReservations } from "../../thunk/userReservationThunk";
 
-const BookedTicketsTable = () => {
+const BookedTicketsTable = ({ tickets, onAirlineClick, onDownloadPdf }) => {
   //#region Declare Hook
   const dispatch = useDispatch();
   const ITEMS_PER_PAGE = 3;
   //#endregion Declare Hook
 
   //#region Selector
-  const { reservations, status, error } = useSelector(
-    (state) => state.reservation
+  const { loading, error, reservations } = useSelector(
+    (state) => state.userReservation
   );
   //#endregion Selector
 
@@ -27,14 +28,27 @@ const BookedTicketsTable = () => {
 
   //#region Implement Hook
   useEffect(() => {
-    dispatch(getUserReservations());
-  }, [dispatch]);
+    // Chỉ gọi API khi chưa có dữ liệu và không đang loading
+    if (!loading && (!reservations || reservations.length === 0)) {
+      dispatch(getUserReservations())
+        .unwrap()
+        .then((payload) => {
+          console.log("Fetched reservations:", payload); // Log để debug
+        })
+        .catch((error) => {
+          console.error("Fetch error:", error);
+          toast.error(
+            `Failed to fetch reservations: ${error.message || error}`
+          );
+        });
+    }
+  }, [dispatch, loading, reservations]); // Sử dụng reservations thay vì tickets
   //#endregion Implement Hook
 
   //#region Handle Function
-  const totalPages = Math.ceil(reservations.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil((tickets || []).length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const currentReservations = reservations.slice(
+  const currentReservations = (tickets || []).slice(
     startIndex,
     startIndex + ITEMS_PER_PAGE
   );
@@ -49,10 +63,13 @@ const BookedTicketsTable = () => {
 
   const debouncedOnAirlineClick = useCallback(
     debounce((reservationId) => {
-      // Implement navigation or detail view logic here
-      console.log("View details for reservation:", reservationId);
+      if (onAirlineClick) {
+        onAirlineClick(reservationId);
+      } else {
+        console.log("View details for reservation:", reservationId);
+      }
     }, 500),
-    []
+    [onAirlineClick]
   );
 
   function debounce(func, wait) {
@@ -100,14 +117,16 @@ const BookedTicketsTable = () => {
     return datePart;
   };
 
-  if (status === "loading") return <div>Loading...</div>;
-  if (status === "failed")
+  if (loading) return <div>Loading...</div>;
+  if (error)
     return (
       <div>
         Error: {error}
         <button onClick={() => dispatch(getUserReservations())}>Retry</button>
       </div>
     );
+  if (!tickets || tickets.length === 0)
+    return <div>No reservations available.</div>;
   //#endregion Handle Function
 
   return (
@@ -122,7 +141,6 @@ const BookedTicketsTable = () => {
             <th className="px-4 py-3 text-left font-semibold">Arrival</th>
             <th className="px-4 py-3 text-left font-semibold">Duration</th>
             <th className="px-4 py-3 text-left font-semibold">Booked On</th>
-            <th className="px-4 py-3 text-left font-semibold">Status</th>
             <th className="px-4 py-3 text-left font-semibold">Total Fare</th>
             <th className="px-4 py-3 text-left font-semibold">Actions</th>
           </tr>
@@ -138,14 +156,12 @@ const BookedTicketsTable = () => {
                   className="px-4 py-3 text-blue-600 hover:underline cursor-pointer"
                   onClick={() => debouncedOnAirlineClick(res.reservationId)}
                 >
-                  {ticket.airline?.name || "N/A"}
+                  {ticket.airline || "N/A"}
                 </td>
                 <td className="px-4 py-3">
-                  {ticket.departureAirport?.name || "N/A"}
+                  {ticket.departureAirport || "N/A"}
                 </td>
-                <td className="px-4 py-3">
-                  {ticket.arrivalAirport?.name || "N/A"}
-                </td>
+                <td className="px-4 py-3">{ticket.arrivalAirport || "N/A"}</td>
                 <td className="px-4 py-3">
                   {formatDateOnly(ticket.departureTime) || "N/A"}
                 </td>
@@ -156,7 +172,6 @@ const BookedTicketsTable = () => {
                 <td className="px-4 py-3">
                   {formatDateOnly(res.bookedOn) || "N/A"}
                 </td>
-                <td className="px-4 py-3">{res.status || "N/A"}</td>
                 <td className="px-4 py-3">
                   ${res.totalPrice?.toFixed(2) || "N/A"}
                 </td>

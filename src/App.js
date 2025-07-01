@@ -54,6 +54,7 @@ const App = () => (
           newestOnTop={false}
           closeOnClick={true}
           rtl={false}
+          style={{ zIndex: 9999 }}
         />
       </Router>
     </AuthProvider>
