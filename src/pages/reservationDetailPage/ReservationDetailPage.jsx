@@ -1,183 +1,261 @@
 // Libs
-import React, { useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import React, { useEffect, useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
+import { BiArrowBack, BiDownload } from "react-icons/bi";
 // Components, Layouts, Pages
+import AccountInfo from "../../components/accountInfo/AccountInfo";
 import Header from "../../components/header/Header";
 import Footer from "../../components/footer/Footer";
+import Button from "../../components/button/Button";
+import BookedTicketsTable from "../../components/bookedTicketTable/BookedTicketTable";
+import ReservationDetailModal from "../../components/reservationDetailModal/ReservationDetailModal";
 // Others
-import { BiArrowBack } from "react-icons/bi";
 import { resetReservationDetailState } from "../../ultis/redux/reservationDetailSlice";
+import { downloadReservationPdf } from "../../thunk/pdfGenerationThunk";
 import { getReservationDetail } from "../../thunk/reservationDetailThunk";
-
+import { getUserReservations } from "../../thunk/userReservationThunk";
 // Styles, images, icons
-const ReservationDetailPage = () => {
+const ReservationsPage = () => {
   //#region Declare Hook
-  const { id } = useParams(); // Lấy reservationId từ URL
   const navigate = useNavigate();
   const dispatch = useDispatch();
   //#endregion Declare Hook
 
   //#region Selector
   const {
+    reservations,
+    loading: reservationsLoading,
+    error: reservationsError,
+  } = useSelector((state) => state.userReservation);
+
+  const {
     reservationDetail,
     loading: detailLoading,
     error: detailError,
   } = useSelector((state) => state.reservationDetail);
+
+  const {
+    loading: pdfLoading,
+    error: pdfError,
+    success: pdfSuccess,
+  } = useSelector((state) => state.pdf);
   //#endregion Selector
 
   //#region Declare State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedReservationId, setSelectedReservationId] = useState(null);
   //#endregion Declare State
 
   //#region Implement Hook
   useEffect(() => {
-    // Reset state khi vào trang
+    // Reset reservation detail state khi vào trang
     dispatch(resetReservationDetailState());
-    if (id) {
-      dispatch(getReservationDetail(id))
+
+    // Kiểm tra và gọi API nếu cần, bao gồm khi dữ liệu không hợp lệ
+    if (
+      !reservationsLoading &&
+      (!reservations ||
+        reservations.length === 0 ||
+        reservations.some((r) => !r.tickets?.length))
+    ) {
+      dispatch(getUserReservations())
         .unwrap()
-        .then(() => {
-          console.log("Reservation detail fetched:", reservationDetail); // Debug
+        .then((payload) => {
+          console.log("Fetched reservations:", payload);
         })
         .catch((error) => {
+          console.error("Fetch error:", error);
           toast.error(
-            `Failed to fetch reservation details: ${error.message || error}`
+            `Failed to fetch reservations: ${error.message || error}`
           );
-          navigate("/reservations"); // Quay lại nếu lỗi
         });
-    } else {
-      navigate("/reservations"); // Quay lại nếu không có id
     }
-  }, [dispatch, id, navigate]);
+  }, [dispatch, reservationsLoading, reservations]);
+
+  useEffect(() => {
+    console.log("Reservation Detail State:", {
+      reservationDetail,
+      detailLoading,
+      detailError,
+      isModalOpen,
+    });
+    if (isModalOpen && !detailLoading && reservationDetail) {
+      console.log("Modal should be visible with data:", reservationDetail);
+    } else if (isModalOpen && detailLoading) {
+      console.log("Modal delayed due to loading:", detailLoading);
+    }
+  }, [reservationDetail, detailLoading, detailError, isModalOpen]);
   //#endregion Implement Hook
 
   //#region Handle Function
-  if (detailLoading) return <div className="p-4 text-center">Loading...</div>;
-  if (detailError)
-    return <div className="p-4 text-red-600 text-center">{detailError}</div>;
-  if (!reservationDetail)
-    return <div className="p-4">Reservation not found</div>;
-
-  const ticket = reservationDetail.Tickets?.[0] || {}; // Lấy ticket đầu tiên
-  const departureTime = ticket.Departure ? new Date(ticket.Departure) : null;
-  const arrivalTime = ticket.Arrival ? new Date(ticket.Arrival) : null;
-  const status = reservationDetail.Status || "N/A"; // Hiển thị trạng thái
-
-  const handleBack = () => {
-    navigate(-1);
+  const handleAirlineClick = (reservationId) => {
+    if (detailLoading) return;
+    setSelectedReservationId(reservationId);
+    dispatch(getReservationDetail(reservationId))
+      .unwrap()
+      .then(() => {
+        setIsModalOpen(true);
+      })
+      .catch((error) => {
+        toast.error(
+          `Cannot retrieve reservation details: ${error.message || error}`
+        );
+      });
   };
+
+  const handleDownloadPdf = (reservationId) => {
+    if (pdfLoading) return;
+    dispatch(downloadReservationPdf(reservationId))
+      .unwrap()
+      .then(() => {
+        if (pdfError) {
+          toast.error(`Error downloading PDF: ${pdfError}`);
+        } else if (pdfSuccess) {
+          toast.success(
+            `PDF downloaded successfully for reservation ${reservationId}`
+          );
+        }
+      })
+      .catch((error) => {
+        toast.error(`Error downloading PDF: ${error.message || error}`);
+      });
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedReservationId(null);
+    dispatch(resetReservationDetailState()); // Reset state khi đóng modal
+  };
+
+  const mappedReservations = useMemo(() => {
+    console.log("Raw reservations:", reservations);
+    if (!Array.isArray(reservations)) {
+      console.warn("Reservations is not an array:", reservations);
+      return [];
+    }
+    const result = reservations.flatMap((reservation) => {
+      console.log("Processing reservation:", reservation);
+      return (reservation.tickets || []).map((ticket, index) => {
+        // [SỬA] Parse date theo định dạng dd/MM/yyyy HH:mm
+        const [departureDate, departureTime] = (
+          ticket.departureTime || ""
+        ).split(" ");
+        const [arrivalDate, arrivalTime] = (ticket.arrivalTime || "").split(
+          " "
+        );
+        const departureParts = departureDate.split("/").map(Number);
+        const arrivalParts = arrivalDate.split("/").map(Number);
+        const departure = new Date(
+          departureParts[2],
+          departureParts[1] - 1,
+          departureParts[0],
+          ...(departureTime || "00:00").split(":").map(Number)
+        );
+        const arrival = new Date(
+          arrivalParts[2],
+          arrivalParts[1] - 1,
+          arrivalParts[0],
+          ...(arrivalTime || "00:00").split(":").map(Number)
+        );
+
+        const durationMs = arrival - departure;
+        const durationHours = Math.floor(durationMs / (1000 * 60 * 60));
+        const durationMinutes = Math.floor(
+          (durationMs % (1000 * 60 * 60)) / (1000 * 60)
+        );
+        const duration =
+          isNaN(durationMs) || durationMs < 0
+            ? "N/A"
+            : `${durationHours}h ${durationMinutes}m`;
+
+        return {
+          reservationId: reservation.reservationId || reservation.Id || "N/A",
+          flightScheduleId: ticket.id || "N/A",
+          Airline: ticket.airline?.name || "N/A",
+          From: ticket.departureAirport?.name || "N/A",
+          To: ticket.arrivalAirport?.name || "N/A",
+          Departure: isNaN(departure)
+            ? "N/A"
+            : departure.toLocaleDateString("en-GB", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+              }),
+          Arrival: isNaN(arrival)
+            ? "N/A"
+            : arrival.toLocaleDateString("en-GB", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+              }),
+          Duration: duration,
+          BookedOn:
+            new Date(reservation.bookedOn || "").toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+            }) || "N/A",
+          TotalPrice: reservation.totalPrice || 0,
+          Status: reservation.status || "N/A",
+        };
+      });
+    });
+    console.log("Mapped reservations result:", result);
+    return result;
+  }, [reservations]);
   //#endregion Handle Function
 
   return (
-    <>
+    <div className="min-h-screen bg-gray-50">
       <Header />
-      <div className="bg-gray-50 min-h-screen py-10 px-4">
-        <div className="max-w-3xl mx-auto mb-4">
-          {/* Nút Back */}
-          <button
-            onClick={handleBack}
-            className="text-blue-600 hover:underline text-sm mb-2 flex items-center gap-1"
-          >
-            <BiArrowBack size={16} /> Back
-          </button>
-
-          {/* Tiêu đề */}
-          <h2 className="text-2xl font-bold text-red-600 mb-6">
-            Review Your Reservation
-          </h2>
+      <Button
+        className="text-xs px-2 py-1 w-[100px] ml-[190px] mt-3"
+        onClick={() => navigate("/")}
+      >
+        <BiArrowBack size={20} />
+      </Button>
+      <div className="max-w-5xl mx-auto px-4 py-8">
+        <div className="bg-white shadow-md rounded-2xl p-6 mb-8">
+          <AccountInfo />
         </div>
-
-        {/* Thông tin vé */}
-        <div className="bg-white shadow-md rounded-lg max-w-3xl mx-auto">
-          {/* Header flight */}
-          <div className="flex justify-between items-center border-b px-6 py-4">
-            <h3 className="text-blue-600 font-semibold text-lg">
-              {ticket.From || "N/A"} - {ticket.To || "N/A"}
-            </h3>
-            <span className="text-sm text-gray-600">Status: {status}</span>{" "}
-            {/* Thêm trạng thái */}
-          </div>
-
-          {/* Logo + flight info */}
-          <div className="flex items-center justify-between px-6 py-4">
-            <div className="flex items-center gap-3">
-              <img
-                src={ticket.Airline?.LogoUrl || "/default-logo.png"}
-                alt={ticket.Airline || "Unknown Airline"}
-                className="w-12 h-12 object-contain"
+        <div className="bg-white shadow-md rounded-2xl p-6">
+          <h2 className="text-2xl font-semibold text-blue-600 mb-4">
+            Reservations are booked
+          </h2>
+          {reservationsLoading && <p className="text-gray-600">Loading...</p>}
+          {reservationsError && (
+            <p className="text-red-600">
+              Error when downloading the reservation list: {reservationsError}
+            </p>
+          )}
+          {!reservationsLoading &&
+            !reservationsError &&
+            (!reservations || reservations.length === 0) && (
+              <p className="text-gray-600">
+                You do not have any reservations or non-downloaded data.
+              </p>
+            )}
+          {!reservationsLoading &&
+            !reservationsError &&
+            reservations &&
+            reservations.length > 0 && (
+              <BookedTicketsTable
+                tickets={mappedReservations}
+                onAirlineClick={handleAirlineClick}
+                onDownloadPdf={handleDownloadPdf}
               />
-              <div>
-                <p className="font-medium text-gray-800">
-                  {ticket.Airline || "Unknown Airline"}
-                </p>
-                <p className="text-sm text-gray-600">
-                  Flight: {ticket.FlightNumber || "N/A"}
-                </p>
-                <p className="text-sm text-gray-600">
-                  Aircraft: {ticket.Aircraft?.Name || "N/A"}
-                </p>
-              </div>
-            </div>
-            <div className="text-sm text-gray-700">
-              Class: <strong>{ticket.FlightClass || "N/A"}</strong>
-            </div>
-          </div>
-
-          {/* Route */}
-          <div className="flex justify-between items-center text-sm px-6 py-4 border-t">
-            {/* Depart */}
-            <div className="text-left">
-              <p className="text-gray-500">Depart</p>
-              <p className="text-xl font-semibold">
-                {departureTime?.toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }) || "N/A"}
-              </p>
-              <p className="text-blue-600">
-                {departureTime?.toLocaleDateString("en-GB", {
-                  day: "2-digit",
-                  month: "2-digit",
-                  year: "numeric",
-                }) || "N/A"}
-              </p>
-              <p className="font-semibold">{ticket.From || "N/A"}</p>
-              <p className="text-gray-500 text-xs">{ticket.From || "N/A"}</p>
-            </div>
-
-            {/* Line with stop */}
-            <div className="text-center text-gray-600">
-              <p>{ticket.Duration || "N/A"}</p>
-              <p>{ticket.Stops > 0 ? `${ticket.Stops} stop(s)` : "Non-stop"}</p>
-              <p className="text-xl">📍————✈️</p>
-            </div>
-
-            {/* Arrival */}
-            <div className="text-right">
-              <p className="text-gray-500">Arrive</p>
-              <p className="text-xl font-semibold">
-                {arrivalTime?.toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }) || "N/A"}
-              </p>
-              <p className="text-blue-600">
-                {arrivalTime?.toLocaleDateString("en-GB", {
-                  day: "2-digit",
-                  month: "2-digit",
-                  year: "numeric",
-                }) || "N/A"}
-              </p>
-              <p className="font-semibold">{ticket.To || "N/A"}</p>
-              <p className="text-gray-500 text-xs">{ticket.To || "N/A"}</p>
-            </div>
-          </div>
+            )}
         </div>
       </div>
       <Footer />
-    </>
+      <ReservationDetailModal
+        reservationId={isModalOpen ? selectedReservationId : null}
+        onClose={handleCloseModal}
+      />
+    </div>
   );
 };
 
-export default ReservationDetailPage;
+export default ReservationsPage;

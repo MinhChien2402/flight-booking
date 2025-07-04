@@ -5,7 +5,6 @@ import { toast } from "react-toastify";
 // Components, Layouts, Pages
 // Others
 import { getUserReservations } from "../../thunk/userReservationThunk";
-
 // Styles, images, icons
 import { BiDownload } from "react-icons/bi";
 import "react-toastify/dist/ReactToastify.css";
@@ -28,13 +27,10 @@ const BookedTicketsTable = ({ tickets, onAirlineClick, onDownloadPdf }) => {
 
   //#region Implement Hook
   useEffect(() => {
-    // Chỉ gọi API khi chưa có dữ liệu và không đang loading
     if (!loading && (!reservations || reservations.length === 0)) {
       dispatch(getUserReservations())
         .unwrap()
-        .then((payload) => {
-          console.log("Fetched reservations:", payload); // Log để debug
-        })
+        .then((payload) => console.log("Fetched reservations:", payload))
         .catch((error) => {
           console.error("Fetch error:", error);
           toast.error(
@@ -42,7 +38,7 @@ const BookedTicketsTable = ({ tickets, onAirlineClick, onDownloadPdf }) => {
           );
         });
     }
-  }, [dispatch, loading, reservations]); // Sử dụng reservations thay vì tickets
+  }, [dispatch, loading, reservations]);
   //#endregion Implement Hook
 
   //#region Handle Function
@@ -63,11 +59,8 @@ const BookedTicketsTable = ({ tickets, onAirlineClick, onDownloadPdf }) => {
 
   const debouncedOnAirlineClick = useCallback(
     debounce((reservationId) => {
-      if (onAirlineClick) {
-        onAirlineClick(reservationId);
-      } else {
-        console.log("View details for reservation:", reservationId);
-      }
+      if (onAirlineClick) onAirlineClick(reservationId);
+      else console.log("View details for reservation:", reservationId);
     }, 500),
     [onAirlineClick]
   );
@@ -111,12 +104,6 @@ const BookedTicketsTable = ({ tickets, onAirlineClick, onDownloadPdf }) => {
     }
   };
 
-  const formatDateOnly = (dateString) => {
-    if (!dateString || dateString === "N/A") return "N/A";
-    const datePart = dateString.split(" ")[0].replace(/,$/, "");
-    return datePart;
-  };
-
   if (loading) return <div>Loading...</div>;
   if (error)
     return (
@@ -131,83 +118,96 @@ const BookedTicketsTable = ({ tickets, onAirlineClick, onDownloadPdf }) => {
 
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-full table-auto text-sm">
+      <table className="min-w-full table-auto text-sm border-collapse">
         <thead>
-          <tr className="bg-gray-200 text-gray-700">
-            <th className="px-4 py-3 text-left font-semibold">Airline</th>
-            <th className="px-4 py-3 text-left font-semibold">From</th>
-            <th className="px-4 py-3 text-left font-semibold">To</th>
-            <th className="px-4 py-3 text-left font-semibold">Departure</th>
-            <th className="px-4 py-3 text-left font-semibold">Arrival</th>
-            <th className="px-4 py-3 text-left font-semibold">Duration</th>
-            <th className="px-4 py-3 text-left font-semibold">Booked On</th>
-            <th className="px-4 py-3 text-left font-semibold">Total Fare</th>
-            <th className="px-4 py-3 text-left font-semibold">Actions</th>
+          <tr className="bg-gray-100 text-gray-700">
+            <th className="px-6 py-3 text-left font-semibold border-b border-gray-200">
+              Airline
+            </th>
+            <th className="px-6 py-3 text-left font-semibold border-b border-gray-200">
+              From
+            </th>
+            <th className="px-6 py-3 text-left font-semibold border-b border-gray-200">
+              To
+            </th>
+            <th className="px-6 py-3 text-center font-semibold border-b border-gray-200">
+              Departure
+            </th>
+            <th className="px-6 py-3 text-center font-semibold border-b border-gray-200">
+              Arrival
+            </th>
+            <th className="px-6 py-3 text-center font-semibold border-b border-gray-200">
+              Duration
+            </th>
+            <th className="px-6 py-3 text-center font-semibold border-b border-gray-200">
+              Booked On
+            </th>
+            <th className="px-6 py-3 text-center font-semibold border-b border-gray-200">
+              Total Fare
+            </th>
+            <th className="px-6 py-3 text-center font-semibold border-b border-gray-200">
+              Actions
+            </th>
           </tr>
         </thead>
         <tbody>
-          {currentReservations.map((res) =>
-            res.tickets.map((ticket, index) => (
-              <tr
-                key={`${res.reservationId}-${index}`}
-                className="border-b hover:bg-gray-50"
-              >
-                <td
-                  className="px-4 py-3 text-blue-600 hover:underline cursor-pointer"
-                  onClick={() => debouncedOnAirlineClick(res.reservationId)}
+          {currentReservations.map((ticket, index) => (
+            <tr
+              key={`${ticket.reservationId}-${index}`}
+              className="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-200"
+            >
+              <td className="px-6 py-4 text-blue-600 hover:underline cursor-pointer">
+                {ticket.Airline || "N/A"}
+              </td>
+              <td className="px-6 py-4 text-center">{ticket.From || "N/A"}</td>
+              <td className="px-6 py-4 text-center">{ticket.To || "N/A"}</td>
+              <td className="px-6 py-4 text-center">
+                {ticket.Departure || "N/A"}
+              </td>
+              <td className="px-6 py-4 text-center">
+                {ticket.Arrival || "N/A"}
+              </td>
+              <td className="px-6 py-4 text-center">
+                {ticket.Duration || "N/A"}
+              </td>
+              <td className="px-6 py-4 text-center">
+                {ticket.BookedOn || "N/A"}
+              </td>
+              <td className="px-6 py-4 text-center">
+                ${ticket.TotalPrice?.toFixed(2) || "N/A"}
+              </td>
+              <td className="px-6 py-4 text-center">
+                <button
+                  className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center disabled:opacity-50"
+                  onClick={() => handleDownloadPdf(ticket.reservationId)}
+                  disabled={!ticket.reservationId}
                 >
-                  {ticket.airline || "N/A"}
-                </td>
-                <td className="px-4 py-3">
-                  {ticket.departureAirport || "N/A"}
-                </td>
-                <td className="px-4 py-3">{ticket.arrivalAirport || "N/A"}</td>
-                <td className="px-4 py-3">
-                  {formatDateOnly(ticket.departureTime) || "N/A"}
-                </td>
-                <td className="px-4 py-3">
-                  {formatDateOnly(ticket.arrivalTime) || "N/A"}
-                </td>
-                <td className="px-4 py-3">{ticket.duration || "N/A"}</td>
-                <td className="px-4 py-3">
-                  {formatDateOnly(res.bookedOn) || "N/A"}
-                </td>
-                <td className="px-4 py-3">
-                  ${res.totalPrice?.toFixed(2) || "N/A"}
-                </td>
-                <td className="px-4 py-3">
-                  <button
-                    className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 flex items-center"
-                    onClick={() => handleDownloadPdf(res.reservationId)}
-                    disabled={!res.reservationId}
-                  >
-                    <BiDownload size={18} />
-                  </button>
-                </td>
-              </tr>
-            ))
-          )}
+                  <BiDownload size={18} className="mr-2" />
+                </button>
+              </td>
+            </tr>
+          ))}
         </tbody>
       </table>
 
       {/* Pagination controls */}
       {totalPages > 1 && (
-        <div className="flex justify-between items-center mt-4 px-2">
-          <span className="text-sm text-gray-700">
+        <div className="flex justify-between items-center mt-4 px-6">
+          <span className="text-sm text-gray-600">
             Page {currentPage} of {totalPages}
           </span>
           <div className="flex gap-2">
             <button
               onClick={handlePrev}
               disabled={currentPage === 1}
-              className="px-4 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
+              className="px-4 py-2 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50 transition-colors"
             >
               Previous
             </button>
             <button
               onClick={handleNext}
               disabled={currentPage === totalPages}
-              className="px-4 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
+              className="px-4 py-2 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50 transition-colors"
             >
               Next
             </button>

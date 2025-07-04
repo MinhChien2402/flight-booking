@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import { BiArrowBack, BiDownload } from "react-icons/bi";
+import moment from "moment";
 // Components, Layouts, Pages
 import AccountInfo from "../../components/accountInfo/AccountInfo";
 import Header from "../../components/header/Header";
@@ -15,6 +16,7 @@ import ReservationDetailModal from "../../components/reservationDetailModal/Rese
 import { resetReservationDetailState } from "../../ultis/redux/reservationDetailSlice";
 import { downloadReservationPdf } from "../../thunk/pdfGenerationThunk";
 import { getReservationDetail } from "../../thunk/reservationDetailThunk";
+import { getUserReservations } from "../../thunk/userReservationThunk";
 // Styles, images, icons
 const ReservationsPage = () => {
   //#region Declare Hook
@@ -51,7 +53,27 @@ const ReservationsPage = () => {
   useEffect(() => {
     // Reset reservation detail state khi vào trang
     dispatch(resetReservationDetailState());
-  }, [dispatch]);
+
+    // Kiểm tra và gọi API nếu cần, bao gồm khi dữ liệu không hợp lệ
+    if (
+      !reservationsLoading &&
+      (!reservations ||
+        reservations.length === 0 ||
+        reservations.some((r) => !r.tickets?.length))
+    ) {
+      dispatch(getUserReservations())
+        .unwrap()
+        .then((payload) => {
+          console.log("Fetched reservations:", payload);
+        })
+        .catch((error) => {
+          console.error("Fetch error:", error);
+          toast.error(
+            `Failed to fetch reservations: ${error.message || error}`
+          );
+        });
+    }
+  }, [dispatch, reservationsLoading, reservations]);
 
   useEffect(() => {
     console.log("Reservation Detail State:", {
@@ -65,7 +87,7 @@ const ReservationsPage = () => {
     } else if (isModalOpen && detailLoading) {
       console.log("Modal delayed due to loading:", detailLoading);
     }
-  }, [reservationDetail, detailLoading, detailError, isModalOpen]);
+  }, [reservationDetail, detailLoading, isModalOpen]);
   //#endregion Implement Hook
 
   //#region Handle Function
@@ -109,17 +131,32 @@ const ReservationsPage = () => {
   };
 
   const mappedReservations = useMemo(() => {
-    console.log("Raw reservations:", reservations); // Log raw data
     if (!Array.isArray(reservations)) {
       console.warn("Reservations is not an array:", reservations);
       return [];
     }
     const result = reservations.flatMap((reservation) => {
-      console.log("Processing reservation:", reservation); // Log từng reservation
       return (reservation.tickets || []).map((ticket, index) => {
-        const departureTime = new Date(ticket.departureTime || "");
-        const arrivalTime = new Date(ticket.arrivalTime || "");
-        const durationMs = arrivalTime - departureTime;
+        const parseDateTime = (dateTimeStr) => {
+          if (!dateTimeStr) return "N/A";
+          const parsed = moment(
+            dateTimeStr,
+            ["DD/MM/YYYY HH:mm", moment.ISO_8601],
+            true
+          );
+          return parsed.isValid() ? parsed.format("DD/MM/YYYY HH:mm") : "N/A";
+        };
+
+        const departureTime = parseDateTime(ticket.departureTime || "");
+        const arrivalTime = parseDateTime(ticket.arrivalTime || "");
+
+        const depDate = moment(
+          departureTime,
+          "DD/MM/YYYY HH:mm",
+          true
+        ).toDate();
+        const arrDate = moment(arrivalTime, "DD/MM/YYYY HH:mm", true).toDate();
+        const durationMs = arrDate - depDate;
         const durationHours = Math.floor(durationMs / (1000 * 60 * 60));
         const durationMinutes = Math.floor(
           (durationMs % (1000 * 60 * 60)) / (1000 * 60)
@@ -130,28 +167,19 @@ const ReservationsPage = () => {
 
         return {
           reservationId: reservation.reservationId || "N/A",
-          Airline: ticket.airline?.Name || "N/A",
-          From: ticket.departureAirport?.Name || "N/A",
-          To: ticket.arrivalAirport?.Name || "N/A",
-          Departure:
-            departureTime.toLocaleDateString("en-GB", {
-              day: "2-digit",
-              month: "2-digit",
-              year: "numeric",
-            }) || "N/A",
-          Arrival:
-            arrivalTime.toLocaleDateString("en-GB", {
-              day: "2-digit",
-              month: "2-digit",
-              year: "numeric",
-            }) || "N/A",
+          Airline: ticket.airline?.name || "N/A",
+          From: ticket.departureAirport?.name || "N/A",
+          To: ticket.arrivalAirport?.name || "N/A",
+          Departure: departureTime,
+          Arrival: arrivalTime,
           Duration: duration,
-          BookedOn: reservation.bookedOn || "N/A",
+          BookedOn: reservation.bookedOn
+            ? moment(reservation.bookedOn).format("DD/MM/YYYY HH:mm")
+            : "N/A",
           TotalPrice: reservation.totalPrice || 0,
         };
       });
     });
-    console.log("Mapped reservations result:", result); // Log kết quả cuối cùng
     return result;
   }, [reservations]);
   //#endregion Handle Function

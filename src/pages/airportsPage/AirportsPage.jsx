@@ -30,7 +30,7 @@ export default function AirportPage() {
     loading,
     error,
   } = useSelector(
-    (state) => state.airport // Đổi từ airports
+    (state) => state.airports // Đổi từ airports
   );
   //#endregion Selector
 
