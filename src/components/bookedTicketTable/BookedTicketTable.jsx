@@ -5,6 +5,7 @@ import { toast } from "react-toastify";
 // Components, Layouts, Pages
 // Others
 import { getUserReservations } from "../../thunk/userReservationThunk";
+import { confirmReservation } from "../../thunk/reservationThunk";
 // Styles, images, icons
 import { BiDownload } from "react-icons/bi";
 import "react-toastify/dist/ReactToastify.css";
@@ -104,6 +105,30 @@ const BookedTicketsTable = ({ tickets, onAirlineClick, onDownloadPdf }) => {
     }
   };
 
+  const handleConfirm = async (reservationId) => {
+    try {
+      const response = await dispatch(
+        confirmReservation(reservationId)
+      ).unwrap();
+      toast.success(
+        `Reservation confirmed! Confirmation Number: ${response.confirmationNumber}`,
+        {
+          position: "top-right",
+          autoClose: 5000,
+        }
+      );
+      // Cập nhật danh sách vé
+      dispatch(getUserReservations());
+    } catch (error) {
+      console.error("Confirm error:", error);
+      toast.error(`Failed to confirm reservation: ${error.message || error}`, {
+        position: "top-right",
+        autoClose: 5000,
+      });
+    }
+  };
+  //#endregion Handle Function
+
   if (loading) return <div>Loading...</div>;
   if (error)
     return (
@@ -114,7 +139,6 @@ const BookedTicketsTable = ({ tickets, onAirlineClick, onDownloadPdf }) => {
     );
   if (!tickets || tickets.length === 0)
     return <div>No reservations available.</div>;
-  //#endregion Handle Function
 
   return (
     <div className="overflow-x-auto">
@@ -144,6 +168,9 @@ const BookedTicketsTable = ({ tickets, onAirlineClick, onDownloadPdf }) => {
             </th>
             <th className="px-6 py-3 text-center font-semibold border-b border-gray-200">
               Total Fare
+            </th>
+            <th className="px-6 py-3 text-center font-semibold border-b border-gray-200">
+              Status
             </th>
             <th className="px-6 py-3 text-center font-semibold border-b border-gray-200">
               Actions
@@ -177,13 +204,32 @@ const BookedTicketsTable = ({ tickets, onAirlineClick, onDownloadPdf }) => {
                 ${ticket.TotalPrice?.toFixed(2) || "N/A"}
               </td>
               <td className="px-6 py-4 text-center">
-                <button
-                  className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center disabled:opacity-50"
-                  onClick={() => handleDownloadPdf(ticket.reservationId)}
-                  disabled={!ticket.reservationId}
-                >
-                  <BiDownload size={18} className="mr-2" />
-                </button>
+                {ticket.Status || "N/A"}
+              </td>
+              <td className="px-6 py-4 text-center">
+                <div className="flex justify-center gap-2">
+                  {ticket.Status === "Blocked" && (
+                    <button
+                      className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center"
+                      onClick={() => handleConfirm(ticket.reservationId)}
+                      disabled={!ticket.reservationId}
+                    >
+                      Confirm
+                    </button>
+                  )}
+                  {ticket.Status === "Cancelled" && (
+                    <span className="text-red-600">Cancelled</span>
+                  )}
+                  <button
+                    className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center disabled:opacity-50"
+                    onClick={() => onDownloadPdf(ticket.reservationId)}
+                    disabled={
+                      !ticket.reservationId || ticket.Status === "Cancelled"
+                    }
+                  >
+                    <BiDownload size={18} className="mr-2" />
+                  </button>
+                </div>
               </td>
             </tr>
           ))}

@@ -177,6 +177,7 @@ const ReservationsPage = () => {
             ? moment(reservation.bookedOn).format("DD/MM/YYYY HH:mm")
             : "N/A",
           TotalPrice: reservation.totalPrice || 0,
+          Status: reservation.status || "N/A", // Ánh xạ status từ reservation
         };
       });
     });

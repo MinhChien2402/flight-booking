@@ -39,3 +39,21 @@ export const blockReservation = createAsyncThunk(
         }
     }
 );
+
+
+export const confirmReservation = createAsyncThunk(
+    "reservation/confirmReservation",
+    async (reservationId, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem("token");
+            if (!token) return rejectWithValue("No authentication token found");
+
+            const response = await axiosInstance.post(`/Reservation/confirm/${reservationId}`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            return response.data;
+        } catch (error) {
+            return rejectWithValue(error.response?.data?.message || "Failed to confirm reservation");
+        }
+    }
+);
