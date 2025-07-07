@@ -104,9 +104,13 @@ const SearchResultPage = () => {
     ) {
       setSearchParams(location.state.searchParams);
       handleSearch(location.state.searchParams);
-    } else if (!airlines.length || !airports.length) {
     }
-  }, [location.state?.searchParams, airlines.length, airports.length]);
+  }, [
+    location.state?.searchParams,
+    airlines.length,
+    airports.length,
+    dispatch,
+  ]);
   //#endregion Implement Hook
 
   //#region Utility Function
@@ -214,7 +218,10 @@ const SearchResultPage = () => {
   //#region Handle Function
   const handleSearch = useCallback(
     async (params) => {
-      setSearchParams(params);
+      if (process.env.NODE_ENV === "development") {
+        console.log("Handling search with params:", params);
+      }
+      setSearchParams(params); // Cập nhật searchParams với tham số mới
       try {
         const formattedParams = {
           ...params,
@@ -231,6 +238,9 @@ const SearchResultPage = () => {
         const result = await dispatch(
           searchFlightSchedules(formattedParams)
         ).unwrap();
+        if (process.env.NODE_ENV === "development") {
+          console.log("Search result:", result);
+        }
         if (!outboundTickets.length && !returnTickets.length) {
           toast.info("No suitable flight found.");
         }
@@ -244,7 +254,9 @@ const SearchResultPage = () => {
     [dispatch, outboundTickets.length, returnTickets.length]
   );
 
-  const toggleDetails = (id) => setOpenDetails(openDetails === id ? null : id);
+  const toggleDetails = (id) => {
+    setOpenDetails(openDetails === id ? null : id); // Đảm bảo không ảnh hưởng state tìm kiếm
+  };
 
   const handleSelectTicket = (ticket, isOutbound) => {
     if (isOutbound) {

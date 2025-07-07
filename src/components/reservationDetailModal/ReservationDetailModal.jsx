@@ -25,7 +25,11 @@ const ReservationDetailModal = ({ reservationId, onClose }) => {
   //#region Implement Hook
   useEffect(() => {
     if (reservationId) {
-      dispatch(getReservationDetail(reservationId));
+      dispatch(getReservationDetail(reservationId))
+        .unwrap()
+        .catch((err) => {
+          toast.error(`Lỗi khi lấy chi tiết đặt chỗ: ${err.message || err}`);
+        });
     }
     return () => {
       if (reservationId) {
@@ -38,20 +42,45 @@ const ReservationDetailModal = ({ reservationId, onClose }) => {
   //#region Handle Function
   if (!reservationId) return null; // Không hiển thị nếu không có reservationId
 
-  if (loading) return <div className="modal loading">Loading...</div>;
-  if (error)
+  if (loading) {
     return (
-      <div className="modal error">
-        <p className="text-red-600">Error: {error}</p>
-        <Button
-          primary
-          className="mt-2 px-4 py-2 rounded"
-          onClick={() => dispatch(getReservationDetail(reservationId))}
-        >
-          Retry
-        </Button>
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
+        <div className="bg-white p-6 rounded-lg max-w-md w-full text-center">
+          <p className="text-gray-600">Đang tải...</p>
+        </div>
       </div>
     );
+  }
+
+  if (error) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
+        <div className="bg-white p-6 rounded-lg max-w-md w-full text-center">
+          <p className="text-red-600">Lỗi: {error}</p>
+          <Button
+            primary
+            className="mt-2 px-4 py-2 rounded"
+            onClick={() => dispatch(getReservationDetail(reservationId))}
+          >
+            Thử lại
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!reservationDetail) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
+        <div className="bg-white p-6 rounded-lg max-w-md w-full text-center">
+          <p className="text-gray-600">Không tìm thấy thông tin đặt chỗ.</p>
+          <Button primary className="mt-2 px-4 py-2 rounded" onClick={onClose}>
+            Đóng
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   const handleClose = () => {
     dispatch(resetReservationDetailState()); // Reset state khi đóng
@@ -78,8 +107,9 @@ const ReservationDetailModal = ({ reservationId, onClose }) => {
       !arrivalTime ||
       isNaN(new Date(departureTime).getTime()) ||
       isNaN(new Date(arrivalTime).getTime())
-    )
+    ) {
       return "N/A";
+    }
     const durationMs = new Date(arrivalTime) - new Date(departureTime);
     const durationHours = Math.floor(durationMs / (1000 * 60 * 60));
     const durationMinutes = Math.floor(
@@ -93,84 +123,83 @@ const ReservationDetailModal = ({ reservationId, onClose }) => {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
       <div className="bg-white p-6 rounded-lg max-w-md w-full">
         <h2 className="text-xl font-semibold mb-4 text-center">
-          Reservation Detail
+          Chi tiết đặt chỗ
         </h2>
-        {loading && <p className="text-center">Loading...</p>}
-        {error && <p className="text-red-600 text-center">Error: {error}</p>}
-        {reservationDetail && !loading && (
-          <div className="text-left">
-            <div className="detail-section mb-4">
-              <p>
-                <strong>Reservation ID:</strong>{" "}
-                {reservationDetail.ReservationId}
-              </p>
-              <p>
-                <strong>Confirmation Number:</strong>{" "}
-                {reservationDetail.ConfirmationNumber || "N/A"}
-              </p>
-              <p>
-                <strong>Status:</strong> {reservationDetail.Status || "N/A"}
-              </p>
-              <p>
-                <strong>Total Price:</strong> $
-                {reservationDetail.TotalPrice?.toFixed(2) || "N/A"}
-              </p>
-              <p>
-                <strong>Booked On:</strong>{" "}
-                {formatDate(reservationDetail.BookedOn) || "N/A"}
-              </p>
-            </div>
-            <div className="tickets-section mb-4">
-              <h3 className="text-lg font-semibold">Tickets</h3>
-              {reservationDetail.Tickets.map((ticket, index) => (
+        <div className="text-left">
+          <div className="detail-section mb-4">
+            <p>
+              <strong>Mã đặt chỗ:</strong>{" "}
+              {reservationDetail.ReservationId || "N/A"}
+            </p>
+            <p>
+              <strong>Mã xác nhận:</strong>{" "}
+              {reservationDetail.ConfirmationNumber || "N/A"}
+            </p>
+            <p>
+              <strong>Trạng thái:</strong> {reservationDetail.Status || "N/A"}
+            </p>
+            <p>
+              <strong>Tổng giá:</strong> $
+              {reservationDetail.TotalPrice?.toFixed(2) || "N/A"}
+            </p>
+            <p>
+              <strong>Ngày đặt:</strong>{" "}
+              {formatDate(reservationDetail.BookedOn) || "N/A"}
+            </p>
+          </div>
+          <div className="tickets-section mb-4">
+            <h3 className="text-lg font-semibold">Vé</h3>
+            {Array.isArray(reservationDetail.Tickets) &&
+            reservationDetail.Tickets.length > 0 ? (
+              reservationDetail.Tickets.map((ticket, index) => (
                 <div key={index} className="mb-4 p-2 border rounded">
                   <div className="text-center mb-2">
                     <p className="font-bold">
-                      Trip to {ticket.To || "N/A"} -{" "}
-                      {formatDate(ticket.Departure)} to{" "}
+                      Chuyến đến {ticket.To || "N/A"} -{" "}
+                      {formatDate(ticket.Departure)} đến{" "}
                       {formatDate(ticket.Arrival)}
                     </p>
                   </div>
                   <table className="w-full">
                     <tbody>
                       <tr>
-                        <td className="font-bold">Airline:</td>
+                        <td className="font-bold">Hãng bay:</td>
                         <td>{ticket.Airline || "N/A"}</td>
                       </tr>
                       <tr>
-                        <td className="font-bold">From:</td>
+                        <td className="font-bold">Từ:</td>
                         <td>{ticket.From || "N/A"}</td>
                       </tr>
                       <tr>
-                        <td className="font-bold">To:</td>
+                        <td className="font-bold">Đến:</td>
                         <td>{ticket.To || "N/A"}</td>
                       </tr>
                       <tr>
-                        <td className="font-bold">Departure:</td>
+                        <td className="font-bold">Khởi hành:</td>
                         <td>
                           {formatDate(ticket.Departure)}{" "}
                           {formatTime(ticket.Departure)}
                         </td>
                       </tr>
                       <tr>
-                        <td className="font-bold">Arrival:</td>
+                        <td className="font-bold">Đến nơi:</td>
                         <td>
                           {formatDate(ticket.Arrival)}{" "}
                           {formatTime(ticket.Arrival)}
                         </td>
                       </tr>
                       <tr>
-                        <td className="font-bold">Duration:</td>
+                        <td className="font-bold">Thời gian bay:</td>
                         <td>
                           {calculateDuration(ticket.Departure, ticket.Arrival)}
                         </td>
                       </tr>
                       <tr>
-                        <td className="font-bold">Flight Class:</td>
+                        <td className="font-bold">Hạng ghế:</td>
                         <td>{ticket.FlightClass || "N/A"}</td>
                       </tr>
                       <tr>
-                        <td className="font-bold">Price:</td>
+                        <td className="font-bold">Giá:</td>
                         <td>${ticket.Price?.toFixed(2) || "N/A"}</td>
                       </tr>
                     </tbody>
@@ -179,44 +208,52 @@ const ReservationDetailModal = ({ reservationId, onClose }) => {
                     <hr className="my-2 border-gray-300" />
                   )}
                 </div>
-              ))}
-            </div>
-            <div className="passengers-section">
-              <h3 className="text-lg font-semibold">Passengers</h3>
-              {reservationDetail.Passengers.map((passenger, index) => (
+              ))
+            ) : (
+              <p className="text-gray-600">Không có thông tin vé.</p>
+            )}
+          </div>
+          <div className="passengers-section">
+            <h3 className="text-lg font-semibold">Hành khách</h3>
+            {Array.isArray(reservationDetail.Passengers) &&
+            reservationDetail.Passengers.length > 0 ? (
+              reservationDetail.Passengers.map((passenger, index) => (
                 <div key={index} className="mb-2 p-2 border rounded">
                   <p>
-                    <strong>Title:</strong> {passenger.Title}
+                    <strong>Danh xưng:</strong> {passenger.Title || "N/A"}
                   </p>
                   <p>
-                    <strong>Name:</strong> {passenger.FirstName}{" "}
-                    {passenger.LastName}
+                    <strong>Họ tên:</strong> {passenger.FirstName || "N/A"}{" "}
+                    {passenger.LastName || "N/A"}
                   </p>
                   <p>
-                    <strong>Date of Birth:</strong>{" "}
-                    {formatDate(passenger.DateOfBirth)}
+                    <strong>Ngày sinh:</strong>{" "}
+                    {formatDate(passenger.DateOfBirth) || "N/A"}
                   </p>
                   <p>
-                    <strong>Passport Number:</strong> {passenger.PassportNumber}
+                    <strong>Số hộ chiếu:</strong>{" "}
+                    {passenger.PassportNumber || "N/A"}
                   </p>
                   <p>
-                    <strong>Passport Expiry:</strong>{" "}
-                    {formatDate(passenger.PassportExpiry)}
+                    <strong>Hạn hộ chiếu:</strong>{" "}
+                    {formatDate(passenger.PassportExpiry) || "N/A"}
                   </p>
                 </div>
-              ))}
-            </div>
-            <div className="modal-actions mt-4 text-center">
-              <Button
-                primary
-                className="px-4 py-2 rounded w-full"
-                onClick={handleClose}
-              >
-                Close
-              </Button>
-            </div>
+              ))
+            ) : (
+              <p className="text-gray-600">Không có thông tin hành khách.</p>
+            )}
           </div>
-        )}
+          <div className="modal-actions mt-4 text-center">
+            <Button
+              primary
+              className="px-4 py-2 rounded w-full"
+              onClick={handleClose}
+            >
+              Đóng
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );

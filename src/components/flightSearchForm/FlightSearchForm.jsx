@@ -2,22 +2,26 @@
 import React, { useCallback, useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { createSelector } from "reselect"; // Import reselect
+import { createSelector } from "reselect";
 import { toast } from "react-toastify";
 // Components, Layouts, Pages
 import TravellersDropdown from "../traverllerDropdown/TravellersDropdown";
 import CityAutocomplete from "../cityAutocomplete/CityAutocomplete";
 // Others
 import { searchFlightSchedules } from "../../thunk/flightScheduleThunk";
-import { getListAirports } from "../../thunk/airportThunk"; // Import để gọi API
+import { getListAirports } from "../../thunk/airportThunk";
 // Styles, images, icons
 
 const selectAirports = createSelector(
-  (state) => state.airports, // Sửa từ state.airport thành state.airports
+  (state) => state.airports,
   (airportsState) => airportsState?.data || []
 );
 
-const FlightSearchForm = ({ onSearch = () => {}, defaultData = {} }) => {
+const FlightSearchForm = ({
+  onSearch = () => {},
+  defaultData = {},
+  preventNavigation = false,
+}) => {
   //#region Declare Hook
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -63,17 +67,16 @@ const FlightSearchForm = ({ onSearch = () => {}, defaultData = {} }) => {
     seatType: defaultData.FlightClass || "Economy",
   });
   const [ticketPrice, setTicketPrice] = useState(null);
-  const isInitialMount = useRef(true); // Để tránh re-render không cần thiết khi mount
-  const airportsRef = useRef([]); // Lưu trữ airports cục bộ
-  const [localSearchLoading, setLocalSearchLoading] = useState(false); // Thêm state cho loading tìm kiếm
-  const [localSearchError, setLocalSearchError] = useState(null); // Thêm state cho error tìm kiếm
+  const isInitialMount = useRef(true);
+  const airportsRef = useRef([]);
+  const [localSearchLoading, setLocalSearchLoading] = useState(false);
+  const [localSearchError, setLocalSearchError] = useState(null);
   //#endregion Declare State
 
   //#region Implement Hook
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
-      // Cập nhật airportsRef ngay khi component mount với dữ liệu hiện tại
       if (airports.length > 0) {
         airportsRef.current = [...airports];
         if (process.env.NODE_ENV === "development") {
@@ -86,10 +89,9 @@ const FlightSearchForm = ({ onSearch = () => {}, defaultData = {} }) => {
         if (process.env.NODE_ENV === "development") {
           console.warn("Initial airports is empty:", airports);
         }
-        // Gọi API lần đầu nếu chưa có dữ liệu
         dispatch(getListAirports());
       }
-      return; // Bỏ qua lần render đầu tiên
+      return;
     }
 
     const formatDefaultDate = (date) => {
@@ -114,7 +116,6 @@ const FlightSearchForm = ({ onSearch = () => {}, defaultData = {} }) => {
     };
     setTravellersInfo(newTravellersInfo);
 
-    // Debug để theo dõi thay đổi airports
     if (process.env.NODE_ENV === "development" && airports.length > 0) {
       console.log(
         "FlightSearchForm airports updated with IDs:",
@@ -130,7 +131,7 @@ const FlightSearchForm = ({ onSearch = () => {}, defaultData = {} }) => {
     defaultData.Adults,
     defaultData.Children,
     defaultData.FlightClass,
-    dispatch, // Theo dõi dispatch để gọi API lần đầu
+    dispatch,
   ]);
 
   useEffect(() => {
@@ -146,12 +147,12 @@ const FlightSearchForm = ({ onSearch = () => {}, defaultData = {} }) => {
         );
       }
     }
-  }, [airports]); // Chỉ theo dõi airports để cập nhật ref, giảm re-render
+  }, [airports]);
 
   useEffect(() => {
-    const basePrice = 300; // Đồng bộ với SearchResultsPage
+    const basePrice = 300;
     const adultPrice = basePrice * travellersInfo.adults;
-    const childPrice = basePrice * 0.7 * travellersInfo.children; // Giá trẻ em là 70% giá người lớn
+    const childPrice = basePrice * 0.7 * travellersInfo.children;
     const totalPrice = adultPrice + childPrice;
     setTicketPrice(totalPrice);
   }, [travellersInfo]);
@@ -204,7 +205,6 @@ const FlightSearchForm = ({ onSearch = () => {}, defaultData = {} }) => {
       );
       return false;
     }
-    // Sử dụng airportsRef nếu airports rỗng, đảm bảo dữ liệu không bị mất
     const effectiveAirports =
       airports.length > 0 ? airports : airportsRef.current;
     if (!effectiveAirports || effectiveAirports.length === 0) {
@@ -304,9 +304,16 @@ const FlightSearchForm = ({ onSearch = () => {}, defaultData = {} }) => {
     }
 
     try {
-      await dispatch(searchFlightSchedules(searchParams)).unwrap();
-      onSearch(searchParams); // Gọi callback để thông báo tìm kiếm thành công
-      navigate("/search-results", { state: { searchParams } }); // Chuyển trang
+      const result = await dispatch(
+        searchFlightSchedules(searchParams)
+      ).unwrap();
+      if (process.env.NODE_ENV === "development") {
+        console.log("Search result:", result);
+      }
+      if (!preventNavigation) {
+        navigate("/search-results", { state: { searchParams } });
+      }
+      onSearch(searchParams);
     } catch (error) {
       setLocalSearchError(error.message || "Search failed");
       toast.error(

@@ -12,11 +12,14 @@ import Footer from "../../components/footer/Footer";
 import Button from "../../components/button/Button";
 import BookedTicketsTable from "../../components/bookedTicketTable/BookedTicketTable";
 import ReservationDetailModal from "../../components/reservationDetailModal/ReservationDetailModal";
+import FlightSearchForm from "../../components/flightSearchForm/FlightSearchForm";
 // Others
 import { resetReservationDetailState } from "../../ultis/redux/reservationDetailSlice";
 import { downloadReservationPdf } from "../../thunk/pdfGenerationThunk";
 import { getReservationDetail } from "../../thunk/reservationDetailThunk";
 import { getUserReservations } from "../../thunk/userReservationThunk";
+import { rescheduleReservation } from "../../thunk/reservationThunk";
+import { searchFlightSchedules } from "../../thunk/flightScheduleThunk";
 // Styles, images, icons
 const ReservationsPage = () => {
   //#region Declare Hook
@@ -42,19 +45,34 @@ const ReservationsPage = () => {
     error: pdfError,
     success: pdfSuccess,
   } = useSelector((state) => state.pdf);
+
+  const {
+    outboundTickets: availableFlights,
+    loading: flightSearchLoading,
+    error: flightSearchError,
+  } = useSelector(
+    (state) =>
+      state.flightSchedule || {
+        outboundTickets: [],
+        loading: false,
+        error: null,
+      }
+  );
   //#endregion Selector
 
   //#region Declare State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedReservationId, setSelectedReservationId] = useState(null);
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [selectedNewFlightId, setSelectedNewFlightId] = useState(null);
+  const [searchParams, setSearchParams] = useState({});
+  const [rescheduling, setRescheduling] = useState(false); // Thêm trạng thái loading
   //#endregion Declare State
 
   //#region Implement Hook
   useEffect(() => {
-    // Reset reservation detail state khi vào trang
     dispatch(resetReservationDetailState());
 
-    // Kiểm tra và gọi API nếu cần, bao gồm khi dữ liệu không hợp lệ
     if (
       !reservationsLoading &&
       (!reservations ||
@@ -92,16 +110,33 @@ const ReservationsPage = () => {
 
   //#region Handle Function
   const handleAirlineClick = (reservationId) => {
-    if (detailLoading) return;
+    console.log("handleAirlineClick called with reservationId:", reservationId);
+    if (detailLoading) {
+      console.log("Detail loading, skipping...");
+      return;
+    }
     setSelectedReservationId(reservationId);
+    console.log("SelectedReservationId set to:", reservationId);
     dispatch(getReservationDetail(reservationId))
       .unwrap()
-      .then(() => {
-        setIsModalOpen(true);
+      .then((response) => {
+        console.log("Reservation detail fetched successfully:", response);
+        if (
+          response &&
+          (Array.isArray(response.Tickets) ||
+            Array.isArray(response.Passengers))
+        ) {
+          console.log("Data valid, opening modal...");
+          setIsModalOpen(true);
+        } else {
+          console.error("Invalid data structure:", response);
+          toast.error("Dữ liệu đặt chỗ không đầy đủ hoặc không hợp lệ.");
+        }
       })
       .catch((error) => {
+        console.error("Error fetching reservation detail:", error);
         toast.error(
-          `Cannot retrieve reservation details: ${error.message || error}`
+          `Không thể lấy chi tiết đặt chỗ: ${error.message || error}`
         );
       });
   };
@@ -127,7 +162,87 @@ const ReservationsPage = () => {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setSelectedReservationId(null);
-    dispatch(resetReservationDetailState()); // Reset state khi đóng modal
+    dispatch(resetReservationDetailState());
+  };
+
+  const handleReschedule = (reservationId) => {
+    setSelectedReservationId(reservationId);
+    if (reservationDetail && reservationDetail.Tickets.length > 0) {
+      const ticket = reservationDetail.Tickets[0];
+      setSearchParams({
+        DepartureAirportId: ticket.FromId || ticket.From, // Sử dụng FromId nếu có, hoặc From
+        ArrivalAirportId: ticket.ToId || ticket.To, // Sử dụng ToId nếu có, hoặc To
+        DepartureDate: moment(ticket.Departure, "DD/MM/YYYY HH:mm")
+          .add(1, "days")
+          .format("YYYY-MM-DD"),
+        TripType: "oneWay",
+        Adults: 1,
+        Children: 0,
+        FlightClass: ticket.FlightClass || "Economy",
+      });
+    }
+    setShowRescheduleModal(true);
+  };
+
+  const handleSearchFlights = async (params) => {
+    setSearchParams(params);
+    await dispatch(searchFlightSchedules(params)).unwrap();
+  };
+
+  const handleRescheduleConfirm = async () => {
+    if (!selectedNewFlightId) {
+      toast.error("Vui lòng chọn chuyến bay mới!");
+      return;
+    }
+    setRescheduling(true);
+    try {
+      const response = await dispatch(
+        rescheduleReservation({
+          reservationId: selectedReservationId,
+          newFlightScheduleId: selectedNewFlightId,
+        })
+      ).unwrap();
+      toast.success(
+        `Đặt chỗ đã được reschedule! Mã xác nhận mới: ${response.newConfirmationNumber}`
+      );
+
+      // Lấy lại danh sách đặt chỗ
+      const updatedReservations = await dispatch(
+        getUserReservations()
+      ).unwrap();
+      console.log(
+        "Updated reservations after reschedule:",
+        updatedReservations
+      );
+
+      // Lấy chi tiết đặt chỗ mới để hiển thị trong modal
+      const detailResponse = await dispatch(
+        getReservationDetail(selectedReservationId)
+      ).unwrap();
+      console.log("Reservation detail after reschedule:", detailResponse);
+
+      // Đóng modal reschedule và mở modal chi tiết
+      setShowRescheduleModal(false);
+      setSelectedNewFlightId(null);
+      if (
+        detailResponse &&
+        Array.isArray(detailResponse.Tickets) &&
+        Array.isArray(detailResponse.Passengers)
+      ) {
+        setIsModalOpen(true); // Mở modal để hiển thị thông tin mới
+      } else {
+        toast.error("Dữ liệu đặt chỗ mới không đầy đủ.");
+      }
+    } catch (error) {
+      toast.error(`Lỗi khi reschedule đặt chỗ: ${error.message || error}`);
+    } finally {
+      setRescheduling(false);
+    }
+  };
+
+  const handleCloseRescheduleModal = () => {
+    setShowRescheduleModal(false);
+    setSelectedNewFlightId(null);
   };
 
   const mappedReservations = useMemo(() => {
@@ -135,15 +250,11 @@ const ReservationsPage = () => {
       console.warn("Reservations is not an array:", reservations);
       return [];
     }
-    const result = reservations.flatMap((reservation) => {
+    return reservations.flatMap((reservation) => {
       return (reservation.tickets || []).map((ticket, index) => {
         const parseDateTime = (dateTimeStr) => {
           if (!dateTimeStr) return "N/A";
-          const parsed = moment(
-            dateTimeStr,
-            ["DD/MM/YYYY HH:mm", moment.ISO_8601],
-            true
-          );
+          const parsed = moment(dateTimeStr, "DD/MM/YYYY HH:mm", true);
           return parsed.isValid() ? parsed.format("DD/MM/YYYY HH:mm") : "N/A";
         };
 
@@ -174,14 +285,15 @@ const ReservationsPage = () => {
           Arrival: arrivalTime,
           Duration: duration,
           BookedOn: reservation.bookedOn
-            ? moment(reservation.bookedOn).format("DD/MM/YYYY HH:mm")
+            ? moment(reservation.bookedOn, "DD/MM/YYYY HH:mm", true).format(
+                "DD/MM/YYYY HH:mm"
+              )
             : "N/A",
           TotalPrice: reservation.totalPrice || 0,
-          Status: reservation.status || "N/A", // Ánh xạ status từ reservation
+          Status: reservation.status || "N/A",
         };
       });
     });
-    return result;
   }, [reservations]);
   //#endregion Handle Function
 
@@ -223,6 +335,7 @@ const ReservationsPage = () => {
                 tickets={mappedReservations}
                 onAirlineClick={handleAirlineClick}
                 onDownloadPdf={handleDownloadPdf}
+                onReschedule={handleReschedule}
               />
             )}
         </div>
@@ -232,6 +345,71 @@ const ReservationsPage = () => {
         reservationId={isModalOpen ? selectedReservationId : null}
         onClose={handleCloseModal}
       />
+      {showRescheduleModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-11/12 max-w-md">
+            <h3 className="text-xl font-semibold mb-4 text-gray-800 border-b border-gray-200 pb-2">
+              Reschedule Your Flight
+            </h3>
+            <FlightSearchForm
+              defaultData={searchParams}
+              onSearch={handleSearchFlights}
+              preventNavigation={true}
+              className="mb-4"
+            />
+            <div className="space-y-2 max-h-40 overflow-y-auto">
+              {flightSearchLoading && (
+                <p className="text-center text-gray-600 animate-pulse">
+                  Loading flights...
+                </p>
+              )}
+              {flightSearchError && (
+                <p className="text-red-600 text-center">
+                  Error: {flightSearchError}
+                </p>
+              )}
+              {!flightSearchLoading &&
+                !flightSearchError &&
+                availableFlights?.length > 0 &&
+                availableFlights.map((flight) => (
+                  <div
+                    key={flight.id}
+                    className="p-3 border border-gray-300 rounded-lg hover:bg-gray-100 cursor-pointer"
+                    onClick={() => setSelectedNewFlightId(flight.id)}
+                    style={{
+                      backgroundColor:
+                        selectedNewFlightId === flight.id
+                          ? "#e0f7fa"
+                          : "transparent",
+                    }}
+                  >
+                    <p>
+                      {flight.airline?.name} -{" "}
+                      {moment(flight.departureTime).format("DD/MM/YYYY HH:mm")}{" "}
+                      to {moment(flight.arrivalTime).format("DD/MM/YYYY HH:mm")}{" "}
+                      - ${flight.price}
+                    </p>
+                  </div>
+                ))}
+              {availableFlights?.length === 0 && !flightSearchLoading && (
+                <p className="text-center text-gray-600">
+                  No flights available.
+                </p>
+              )}
+            </div>
+            <div className="flex justify-end gap-4 mt-4">
+              <Button onClick={handleCloseRescheduleModal}>Cancel</Button>
+              <Button
+                primary
+                onClick={handleRescheduleConfirm}
+                disabled={rescheduling || !selectedNewFlightId}
+              >
+                {rescheduling ? "Rescheduling..." : "Confirm Reschedule"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

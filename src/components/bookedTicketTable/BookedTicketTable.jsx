@@ -10,7 +10,12 @@ import { confirmReservation } from "../../thunk/reservationThunk";
 import { BiDownload } from "react-icons/bi";
 import "react-toastify/dist/ReactToastify.css";
 
-const BookedTicketsTable = ({ tickets, onAirlineClick, onDownloadPdf }) => {
+const BookedTicketsTable = ({
+  tickets,
+  onAirlineClick,
+  onDownloadPdf,
+  onReschedule,
+}) => {
   //#region Declare Hook
   const dispatch = useDispatch();
   const ITEMS_PER_PAGE = 3;
@@ -45,7 +50,10 @@ const BookedTicketsTable = ({ tickets, onAirlineClick, onDownloadPdf }) => {
   //#region Handle Function
   const totalPages = Math.ceil((tickets || []).length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const currentReservations = (tickets || []).slice(
+  const activeReservations = (tickets || []).filter(
+    (ticket) => ticket.Status !== "Cancelled"
+  );
+  const currentReservations = activeReservations.slice(
     startIndex,
     startIndex + ITEMS_PER_PAGE
   );
@@ -127,6 +135,10 @@ const BookedTicketsTable = ({ tickets, onAirlineClick, onDownloadPdf }) => {
       });
     }
   };
+
+  const handleRescheduleClick = (reservationId) => {
+    if (onReschedule) onReschedule(reservationId);
+  };
   //#endregion Handle Function
 
   if (loading) return <div>Loading...</div>;
@@ -137,8 +149,8 @@ const BookedTicketsTable = ({ tickets, onAirlineClick, onDownloadPdf }) => {
         <button onClick={() => dispatch(getUserReservations())}>Retry</button>
       </div>
     );
-  if (!tickets || tickets.length === 0)
-    return <div>No reservations available.</div>;
+  if (!activeReservations.length)
+    return <div>No active reservations available.</div>;
 
   return (
     <div className="overflow-x-auto">
@@ -217,15 +229,21 @@ const BookedTicketsTable = ({ tickets, onAirlineClick, onDownloadPdf }) => {
                       Confirm
                     </button>
                   )}
-                  {ticket.Status === "Cancelled" && (
-                    <span className="text-red-600">Cancelled</span>
+                  {ticket.Status === "Confirmed" && (
+                    <button
+                      className="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition-colors flex items-center justify-center"
+                      onClick={() =>
+                        handleRescheduleClick(ticket.reservationId)
+                      }
+                      disabled={!ticket.reservationId}
+                    >
+                      Reschedule
+                    </button>
                   )}
                   <button
                     className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center disabled:opacity-50"
-                    onClick={() => onDownloadPdf(ticket.reservationId)}
-                    disabled={
-                      !ticket.reservationId || ticket.Status === "Cancelled"
-                    }
+                    onClick={() => handleDownloadPdf(ticket.reservationId)}
+                    disabled={!ticket.reservationId}
                   >
                     <BiDownload size={18} className="mr-2" />
                   </button>
@@ -253,7 +271,7 @@ const BookedTicketsTable = ({ tickets, onAirlineClick, onDownloadPdf }) => {
             <button
               onClick={handleNext}
               disabled={currentPage === totalPages}
-              className="px-4 py-2 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50 transition-colors"
+              className="px-6 py-2 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50 transition-colors"
             >
               Next
             </button>

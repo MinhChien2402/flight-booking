@@ -57,3 +57,20 @@ export const confirmReservation = createAsyncThunk(
         }
     }
 );
+
+export const rescheduleReservation = createAsyncThunk(
+    "reservation/rescheduleReservation",
+    async ({ reservationId, newFlightScheduleId }, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem("token");
+            if (!token) return rejectWithValue("No authentication token found");
+
+            const response = await axiosInstance.put(`/Reservation/reschedule/${reservationId}`, { NewFlightScheduleId: newFlightScheduleId }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            return response.data;
+        } catch (error) {
+            return rejectWithValue(error.response?.data?.message || "Failed to reschedule reservation");
+        }
+    }
+); 

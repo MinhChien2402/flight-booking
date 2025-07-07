@@ -1,5 +1,5 @@
 import { createSlice } from "@reduxjs/toolkit";
-import { blockReservation, createReservation, confirmReservation } from "../../thunk/reservationThunk";
+import { blockReservation, createReservation, confirmReservation, rescheduleReservation } from "../../thunk/reservationThunk";
 
 const reservationSlice = createSlice({
     name: "reservation",
@@ -8,12 +8,12 @@ const reservationSlice = createSlice({
         error: null,
         currentReservation: null,
         blockedReservation: null,
-        confirmedReservation: null
+        confirmedReservation: null,
+        rescheduledReservation: null
     },
     reducers: {},
     extraReducers: (builder) => {
         builder
-            // Xử lý createReservation
             .addCase(createReservation.pending, (state) => {
                 state.status = "loading";
             })
@@ -25,7 +25,6 @@ const reservationSlice = createSlice({
                 state.status = "failed";
                 state.error = action.payload || "Failed to create reservation";
             })
-            // Xử lý blockReservation
             .addCase(blockReservation.pending, (state) => {
                 state.status = "loading";
             })
@@ -37,7 +36,6 @@ const reservationSlice = createSlice({
                 state.status = "failed";
                 state.error = action.payload;
             })
-            // Xử lý confirmReservation
             .addCase(confirmReservation.pending, (state) => {
                 state.status = "loading";
             })
@@ -48,6 +46,17 @@ const reservationSlice = createSlice({
             .addCase(confirmReservation.rejected, (state, action) => {
                 state.status = "failed";
                 state.error = action.payload || "Failed to confirm reservation";
+            })
+            .addCase(rescheduleReservation.pending, (state) => {
+                state.status = "loading";
+            })
+            .addCase(rescheduleReservation.fulfilled, (state, action) => {
+                state.status = "succeeded";
+                state.rescheduledReservation = action.payload;
+            })
+            .addCase(rescheduleReservation.rejected, (state, action) => {
+                state.status = "failed";
+                state.error = action.payload || "Failed to reschedule reservation";
             });
     },
 });
