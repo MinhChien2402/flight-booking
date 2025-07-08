@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import { BiArrowBack, BiDownload } from "react-icons/bi";
 import moment from "moment";
+
 // Components, Layouts, Pages
 import AccountInfo from "../../components/accountInfo/AccountInfo";
 import Header from "../../components/header/Header";
@@ -13,6 +14,7 @@ import Button from "../../components/button/Button";
 import BookedTicketsTable from "../../components/bookedTicketTable/BookedTicketTable";
 import ReservationDetailModal from "../../components/reservationDetailModal/ReservationDetailModal";
 import FlightSearchForm from "../../components/flightSearchForm/FlightSearchForm";
+
 // Others
 import { resetReservationDetailState } from "../../ultis/redux/reservationDetailSlice";
 import { downloadReservationPdf } from "../../thunk/pdfGenerationThunk";
@@ -20,6 +22,7 @@ import { getReservationDetail } from "../../thunk/reservationDetailThunk";
 import { getUserReservations } from "../../thunk/userReservationThunk";
 import { rescheduleReservation } from "../../thunk/reservationThunk";
 import { searchFlightSchedules } from "../../thunk/flightScheduleThunk";
+
 // Styles, images, icons
 const ReservationsPage = () => {
   //#region Declare Hook
@@ -66,7 +69,7 @@ const ReservationsPage = () => {
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [selectedNewFlightId, setSelectedNewFlightId] = useState(null);
   const [searchParams, setSearchParams] = useState({});
-  const [rescheduling, setRescheduling] = useState(false); // Thêm trạng thái loading
+  const [rescheduling, setRescheduling] = useState(false);
   //#endregion Declare State
 
   //#region Implement Hook
@@ -105,7 +108,7 @@ const ReservationsPage = () => {
     } else if (isModalOpen && detailLoading) {
       console.log("Modal delayed due to loading:", detailLoading);
     }
-  }, [reservationDetail, detailLoading, isModalOpen]);
+  }, [reservationDetail, detailLoading, detailError, isModalOpen]);
   //#endregion Implement Hook
 
   //#region Handle Function
@@ -115,26 +118,44 @@ const ReservationsPage = () => {
       console.log("Detail loading, skipping...");
       return;
     }
+    if (!reservationId) {
+      console.error("Invalid reservationId:", reservationId);
+      toast.error("Mã đặt chỗ không hợp lệ.");
+      return;
+    }
     setSelectedReservationId(reservationId);
     console.log("SelectedReservationId set to:", reservationId);
     dispatch(getReservationDetail(reservationId))
       .unwrap()
       .then((response) => {
         console.log("Reservation detail fetched successfully:", response);
+        // Kiểm tra cả Tickets và tickets để xử lý trường hợp không nhất quán
         if (
           response &&
-          (Array.isArray(response.Tickets) ||
-            Array.isArray(response.Passengers))
+          ((Array.isArray(response.tickets) && response.tickets.length > 0) ||
+            (Array.isArray(response.Tickets) && response.Tickets.length > 0))
         ) {
-          console.log("Data valid, opening modal...");
-          setIsModalOpen(true);
+          console.log(
+            "Data valid, opening modal with tickets:",
+            response.tickets || response.Tickets
+          );
+          setIsModalOpen(true); // Đảm bảo mở modal
         } else {
-          console.error("Invalid data structure:", response);
-          toast.error("Dữ liệu đặt chỗ không đầy đủ hoặc không hợp lệ.");
+          console.warn(
+            "No valid tickets found for reservationId:",
+            reservationId,
+            "Response:",
+            response
+          );
+          toast.error("Dữ liệu đặt chỗ không chứa thông tin vé hợp lệ.");
         }
       })
       .catch((error) => {
-        console.error("Error fetching reservation detail:", error);
+        console.error(
+          "Error fetching reservation detail:",
+          error.response?.status,
+          error.response?.data
+        );
         toast.error(
           `Không thể lấy chi tiết đặt chỗ: ${error.message || error}`
         );
@@ -170,8 +191,8 @@ const ReservationsPage = () => {
     if (reservationDetail && reservationDetail.Tickets.length > 0) {
       const ticket = reservationDetail.Tickets[0];
       setSearchParams({
-        DepartureAirportId: ticket.FromId || ticket.From, // Sử dụng FromId nếu có, hoặc From
-        ArrivalAirportId: ticket.ToId || ticket.To, // Sử dụng ToId nếu có, hoặc To
+        DepartureAirportId: ticket.FromId || ticket.From,
+        ArrivalAirportId: ticket.ToId || ticket.To,
         DepartureDate: moment(ticket.Departure, "DD/MM/YYYY HH:mm")
           .add(1, "days")
           .format("YYYY-MM-DD"),
@@ -224,11 +245,7 @@ const ReservationsPage = () => {
       // Đóng modal reschedule và mở modal chi tiết
       setShowRescheduleModal(false);
       setSelectedNewFlightId(null);
-      if (
-        detailResponse &&
-        Array.isArray(detailResponse.Tickets) &&
-        Array.isArray(detailResponse.Passengers)
-      ) {
+      if (detailResponse && Array.isArray(detailResponse.tickets)) {
         setIsModalOpen(true); // Mở modal để hiển thị thông tin mới
       } else {
         toast.error("Dữ liệu đặt chỗ mới không đầy đủ.");
@@ -342,6 +359,7 @@ const ReservationsPage = () => {
       </div>
       <Footer />
       <ReservationDetailModal
+        isOpen={isModalOpen}
         reservationId={isModalOpen ? selectedReservationId : null}
         onClose={handleCloseModal}
       />

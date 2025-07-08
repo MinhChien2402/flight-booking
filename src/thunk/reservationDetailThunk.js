@@ -1,22 +1,15 @@
-// Libs
 import { createAsyncThunk } from "@reduxjs/toolkit";
-// Others
 import axiosInstance from "../api/axiosInstance";
-
-// Styles, images, icons
 
 export const getReservationDetail = createAsyncThunk(
     "reservationDetail/getReservationDetail",
     async (reservationId, { rejectWithValue }) => {
-        //#region Declare Variables
-        //#endregion Declare Variables
-
-        //#region Implement Logic
         try {
             const token = localStorage.getItem("token");
-            console.log("Token:", token);
+            console.log("Fetching reservation detail with token:", token);
             if (!token) {
-                throw new Error("Token không tồn tại. Vui lòng đăng nhập lại.");
+                console.error("No token found in localStorage");
+                return rejectWithValue("Token không tồn tại. Vui lòng đăng nhập lại.");
             }
 
             const response = await axiosInstance.get(`/Reservation/${reservationId}`, {
@@ -24,10 +17,16 @@ export const getReservationDetail = createAsyncThunk(
                     Authorization: `Bearer ${token}`,
                 },
             });
-            console.log("API Response:", response.data);
+
+            console.log("API Response for reservationId:", reservationId, response.data);
+            if (!response.data || Object.keys(response.data).length === 0) {
+                console.warn("Empty or invalid API response for reservationId:", reservationId);
+                return rejectWithValue("Không tìm thấy thông tin đặt chỗ hoặc dữ liệu không hợp lệ.");
+            }
+
             return response.data;
         } catch (error) {
-            console.error("API Error:", error.message, error.response?.data);
+            console.error("API Error for reservationId:", reservationId, error.message, error.response?.data);
             if (error.response?.status === 401) {
                 localStorage.removeItem("token");
                 window.location.href = "/login";
@@ -37,6 +36,5 @@ export const getReservationDetail = createAsyncThunk(
                 error.response?.data?.message || "Lỗi khi lấy chi tiết đặt chỗ"
             );
         }
-        //#endregion Implement Logic
     }
 );

@@ -120,38 +120,26 @@ const SearchResultPage = () => {
     }
 
     const airline = ticket?.airline || { name: "Unknown Airline" };
-    const departureAirport = ticket?.departureAirport ||
-      ticket?.DepartureAirport ||
-      ticket?.departure_airport || {
-        code: "N/A",
-        name: "N/A",
-      };
-    const arrivalAirport = ticket?.arrivalAirport ||
-      ticket?.ArrivalAirport ||
-      ticket?.arrival_airport || {
-        code: "N/A",
-        name: "N/A",
-      };
+    const departureAirport = ticket?.departureAirport || {
+      code: "N/A",
+      name: "N/A",
+    };
+    const arrivalAirport = ticket?.arrivalAirport || {
+      code: "N/A",
+      name: "N/A",
+    };
 
-    const basePrice = ticket?.price || 0;
-    const pricePerAdult = basePrice / memoizedSearchParams.Adults || basePrice;
-    const adultPrice = basePrice;
-    const childPrice = pricePerAdult * 0.7 * memoizedSearchParams.Children;
-    const totalPrice = adultPrice + childPrice;
+    // Giả sử basePrice là giá cho một người lớn
+    const basePricePerAdult = ticket?.price || 300; // Giá cơ bản cho một người lớn
+    const adultPrice = basePricePerAdult * memoizedSearchParams.Adults; // Tổng giá cho người lớn
+    const childPrice = basePricePerAdult * 0.7 * memoizedSearchParams.Children; // Tổng giá cho trẻ em (70% giá người lớn)
+    const totalPrice = adultPrice + childPrice; // Tổng giá
 
     const departureTime = ticket?.departureTime
       ? new Date(ticket.departureTime)
-      : ticket?.DepartureTime
-      ? new Date(ticket.DepartureTime)
-      : ticket?.departure_time
-      ? new Date(ticket.departure_time)
       : null;
     const arrivalTime = ticket?.arrivalTime
       ? new Date(ticket.arrivalTime)
-      : ticket?.ArrivalTime
-      ? new Date(ticket.ArrivalTime)
-      : ticket?.arrival_time
-      ? new Date(ticket.arrival_time)
       : null;
 
     return {
@@ -190,27 +178,15 @@ const SearchResultPage = () => {
             : `${ticket.stops} stop(s)`
           : "N/A",
       price: `$${totalPrice.toFixed(2)}`,
-      originalPrice: `$${basePrice.toFixed(2)}`,
+      originalPrice: `$${basePricePerAdult.toFixed(2)}`, // Giá gốc cho một người lớn
       refundable:
-        (
-          ticket?.flightClass ||
-          ticket?.FlightClass ||
-          ticket?.flight_class
-        )?.toLowerCase() === "economy"
+        ticket?.flightClass?.toLowerCase() === "economy"
           ? "Refundable"
           : "Non-refunded",
-      availableSeats:
-        ticket?.availableSeats ||
-        ticket?.AvailableSeats ||
-        ticket?.available_seats ||
-        "N/A",
+      availableSeats: ticket?.availableSeats || "N/A",
       departAirport: departureAirport.name || "N/A",
       arriveAirport: arrivalAirport.name || "N/A",
-      flightClass:
-        ticket?.flightClass ||
-        ticket?.FlightClass ||
-        ticket?.flight_class ||
-        "N/A",
+      flightClass: ticket?.flightClass || "N/A",
     };
   };
   //#endregion Utility Function

@@ -45,6 +45,7 @@ const App = () => (
           <Route path="/countries" element={<CountriesPage />} />
           <Route path="/aircrafts" element={<AircraftsPage />} />
           <Route path="/flight-schedules" element={<FlightSchedulesPage />} />
+          <Route path="/thank-you" element={<ThankYouPage />} />
         </Routes>
 
         <ToastContainer

@@ -1,26 +1,33 @@
 // Libs
 import React, { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 // Components, Layouts, Pages
 import Header from "../../components/header/Header";
 import Footer from "../../components/footer/Footer";
-import { getUserReservations } from "../../thunk/userReservationThunk";
 // Others
+import { getUserReservations } from "../../thunk/userReservationThunk";
 // Styles, images, icons
 
 const ThankYouPage = () => {
   //#region Declare Hook
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const location = useLocation();
   //#endregion Declare Hook
-
   //#region Selector
   const { reservations, loading, error } = useSelector(
     (state) => state.userReservation
   );
-  const location = useNavigate().location.state || {};
-  const { reservationId, outboundFlight, returnFlight } = location;
+
+  // Lấy dữ liệu từ location.state, bao gồm confirmationNumber và totalPrice
+  const {
+    reservationId,
+    outboundFlight,
+    returnFlight,
+    confirmationNumber,
+    totalPrice,
+  } = location.state || {};
   //#endregion Selector
 
   //#region Declare State
@@ -28,28 +35,52 @@ const ThankYouPage = () => {
 
   //#region Implement Hook
   useEffect(() => {
-    if (!reservations.length && !loading && !error) {
-      dispatch(getUserReservations()); // Tải lại danh sách đặt chỗ
+    if (!reservationId) {
+      console.log("No reservationId found in location.state");
+      return;
     }
-  }, [dispatch, reservations.length, loading, error]);
+    // Luôn gọi lại để lấy dữ liệu mới nhất
+    dispatch(getUserReservations());
+  }, [dispatch, reservationId]);
   //#endregion Implement Hook
 
   //#region Handle Function
   const handleViewTicket = () => {
-    navigate("/bookings");
+    navigate("/reservations");
   };
-  //#endregion Handle Function
 
+  // Sử dụng dữ liệu từ location.state làm ưu tiên, fallback sang reservations
   const latestReservation = reservations.find(
-    (res) => res.id === reservationId
-  ) || { ConfirmationNumber: "N/A", TotalPrice: "N/A" };
+    (res) => res.reservationId === reservationId
+  ) || {
+    confirmationNumber: confirmationNumber || "N/A",
+    totalPrice: totalPrice || "N/A",
+  };
+
+  if (!reservationId) {
+    return (
+      <div className="min-h-screen flex flex-col bg-gray-50">
+        <Header />
+        <div className="flex-1 flex flex-col items-center justify-center py-16 px-4">
+          <p className="text-red-600 text-center">
+            No reservation information available. Please try again.
+          </p>
+          <button
+            onClick={() => navigate("/")}
+            className="bg-pink-600 hover:bg-pink-700 text-white px-6 py-2 rounded-md font-semibold mt-4"
+          >
+            Back to Home
+          </button>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+  //#endregion Handle Function
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      {/* Header */}
       <Header />
-
-      {/* Nội dung chính */}
       <div className="flex-1 flex flex-col items-center justify-center py-16 px-4">
         <h1 className="text-3xl font-bold text-pink-600 mb-4">
           Thank You for Your Reservation!
@@ -66,10 +97,10 @@ const ThankYouPage = () => {
           <>
             <p className="text-gray-700 text-center mb-4">
               <strong>Confirmation Number:</strong>{" "}
-              {latestReservation.ConfirmationNumber}
+              {latestReservation.confirmationNumber}
             </p>
             <p className="text-gray-700 text-center mb-4">
-              <strong>Total Price:</strong> ${latestReservation.TotalPrice}
+              <strong>Total Price:</strong> ${latestReservation.totalPrice}
             </p>
             <button
               onClick={handleViewTicket}
@@ -80,8 +111,6 @@ const ThankYouPage = () => {
           </>
         )}
       </div>
-
-      {/* Footer */}
       <Footer />
     </div>
   );

@@ -3,12 +3,16 @@ import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
+import { jwtDecode } from "jwt-decode";
+
 // Components
 import Header from "../header/Header";
 import Footer from "../footer/Footer";
 import Button from "../button/Button";
+
 // Others
 import { createReservation } from "../../thunk/reservationThunk";
+
 // Icons
 import { BiArrowBack } from "react-icons/bi";
 
@@ -20,6 +24,25 @@ const ReviewReservation = () => {
   const { status, error, currentReservation } = useSelector(
     (state) => state.reservation
   );
+
+  // Lấy token từ localStorage hoặc context (giả sử token được lưu sau khi đăng nhập)
+  const token = localStorage.getItem("token"); // Giả sử token được lưu dưới key "token"
+  let userId = 1; // Mặc định nếu không lấy được
+
+  // Giải mã token để lấy userId
+  if (token) {
+    try {
+      const decodedToken = jwtDecode(token);
+      userId =
+        parseInt(
+          decodedToken[
+            "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"
+          ]
+        ) || 1;
+    } catch (error) {
+      console.error("Error decoding token:", error);
+    }
+  }
 
   // Lấy dữ liệu từ state, hỗ trợ cả one-way và round-trip
   const { outboundFlight, returnFlight, searchParams } = location.state || {
@@ -157,13 +180,42 @@ const ReviewReservation = () => {
     }
 
     const requestBody = {
+      userId: userId, // Sử dụng userId từ token
       outboundTicketId: outboundTicketId,
       returnTicketId: returnTicketId,
-      totalPrice: parseFloat(total),
-      passengers: passengerInfo,
+      totalPrice: parseFloat(total), // Chuyển sang decimal khi gửi
+      passengers: passengerInfo.map((passenger) => ({
+        title: passenger.Title,
+        firstName: passenger.FirstName,
+        lastName: passenger.LastName,
+        dateOfBirth: passenger.DateOfBirth,
+        passportNumber: passenger.PassportNumber,
+        passportExpiry: passenger.PassportExpiry,
+      })),
+      confirmationNumber: `CONF${Math.floor(Math.random() * 1000000)}`.padStart(
+        10,
+        "0"
+      ), // Định dạng mã xác nhận
+      reservationStatus: "Confirmed",
+      cancellationRules:
+        "Default: 90% refund if cancelled > 7 days, 50% if < 7 days",
     };
 
-    dispatch(createReservation(requestBody));
+    console.log("Request Body sent to API:", requestBody);
+    dispatch(createReservation(requestBody)).then((action) => {
+      if (action.payload?.reservationId) {
+        toast.success("Reservation confirmed successfully!");
+        navigate("/thank-you", {
+          state: {
+            reservationId: action.payload.reservationId,
+            outboundFlight,
+            returnFlight,
+          },
+        });
+      } else if (action.error) {
+        toast.error(`Failed to confirm reservation: ${action.error.message}`);
+      }
+    });
   };
   //#endregion Handle Function
 

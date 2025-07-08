@@ -67,24 +67,22 @@ const BookedTicketsTable = ({
   };
 
   const debouncedOnAirlineClick = useCallback(
-    debounce((reservationId) => {
-      if (onAirlineClick) onAirlineClick(reservationId);
-      else console.log("View details for reservation:", reservationId);
-    }, 500),
+    (reservationId) => {
+      if (onAirlineClick) {
+        console.log(
+          "Calling onAirlineClick with reservationId:",
+          reservationId
+        );
+        onAirlineClick(reservationId);
+      } else {
+        console.log(
+          "onAirlineClick not provided, reservationId:",
+          reservationId
+        );
+      }
+    },
     [onAirlineClick]
   );
-
-  function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-      const later = () => {
-        clearTimeout(timeout);
-        func(...args);
-      };
-      clearTimeout(timeout);
-      timeout = setTimeout(later, wait);
-    };
-  }
 
   const handleDownloadPdf = async (reservationId) => {
     try {
@@ -195,7 +193,16 @@ const BookedTicketsTable = ({
               key={`${ticket.reservationId}-${index}`}
               className="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-200"
             >
-              <td className="px-6 py-4 text-blue-600 hover:underline cursor-pointer">
+              <td
+                className="px-6 py-4 text-blue-600 hover:underline cursor-pointer"
+                onClick={() => {
+                  console.log(
+                    "Airline clicked, reservationId:",
+                    ticket.reservationId
+                  );
+                  debouncedOnAirlineClick(ticket.reservationId);
+                }}
+              >
                 {ticket.Airline || "N/A"}
               </td>
               <td className="px-6 py-4 text-center">{ticket.From || "N/A"}</td>
