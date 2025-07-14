@@ -73,4 +73,33 @@ export const rescheduleReservation = createAsyncThunk(
             return rejectWithValue(error.response?.data?.message || "Failed to reschedule reservation");
         }
     }
-); 
+);
+
+export const cancelReservation = createAsyncThunk(
+    "reservation/cancelReservation",
+    async (reservationId, { rejectWithValue }) => {
+        try {
+            const response = await axiosInstance.post(`/Reservation/cancel/${reservationId}`);
+            return response.data;
+        } catch (error) {
+            return rejectWithValue(
+                error.response?.data || { message: "Failed to cancel reservation" }
+            );
+        }
+    }
+);
+
+export const getCancelRules = createAsyncThunk(
+    "reservation/getCancelRules",
+    async (reservationId, { rejectWithValue }) => {
+        try {
+            const response = await axiosInstance.get(`/Reservation/cancel-rules/${reservationId}`);
+            console.log("getCancelRules API response:", response.data);
+            return response.data;
+        } catch (error) {
+            return rejectWithValue(
+                error.response?.data || { message: "Failed to fetch cancellation rules" }
+            );
+        }
+    }
+);

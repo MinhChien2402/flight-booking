@@ -2,12 +2,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
+import { BiDownload } from "react-icons/bi";
+import { FaTrash } from "react-icons/fa";
+
 // Components, Layouts, Pages
 // Others
 import { getUserReservations } from "../../thunk/userReservationThunk";
 import { confirmReservation } from "../../thunk/reservationThunk";
+
 // Styles, images, icons
-import { BiDownload } from "react-icons/bi";
 import "react-toastify/dist/ReactToastify.css";
 
 const BookedTicketsTable = ({
@@ -15,6 +18,7 @@ const BookedTicketsTable = ({
   onAirlineClick,
   onDownloadPdf,
   onReschedule,
+  onCancel,
 }) => {
   //#region Declare Hook
   const dispatch = useDispatch();
@@ -137,6 +141,15 @@ const BookedTicketsTable = ({
   const handleRescheduleClick = (reservationId) => {
     if (onReschedule) onReschedule(reservationId);
   };
+
+  const handleCancelClick = (reservationId) => {
+    if (onCancel) {
+      console.log("Calling onCancel with reservationId:", reservationId);
+      onCancel(reservationId);
+    } else {
+      console.log("onCancel not provided, reservationId:", reservationId);
+    }
+  };
   //#endregion Handle Function
 
   if (loading) return <div>Loading...</div>;
@@ -245,6 +258,18 @@ const BookedTicketsTable = ({
                       disabled={!ticket.reservationId}
                     >
                       Reschedule
+                    </button>
+                  )}
+                  {(ticket.Status === "Blocked" ||
+                    ticket.Status === "Confirmed") && (
+                    <button
+                      className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors flex items-center justify-center"
+                      onClick={() => handleCancelClick(ticket.reservationId)}
+                      disabled={!ticket.reservationId}
+                      title="Cancel Reservation"
+                    >
+                      <FaTrash size={18} className="mr-2" />
+                      Cancel
                     </button>
                   )}
                   <button

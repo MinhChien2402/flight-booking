@@ -1,10 +1,13 @@
 // Libs
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
+
 // Components, Layouts, Pages
 // Others
 // Styles, images, icons
 
-const TravellersDropdown = ({ onChange }) => {
+const seatTypes = ["Economy", "Business", "First"]; // Thứ tự hợp lý: Economy đầu tiên
+
+const TravellersDropdown = ({ value, onChange, className }) => {
   //#region Declare Hook
   //#endregion Declare Hook
 
@@ -13,103 +16,166 @@ const TravellersDropdown = ({ onChange }) => {
 
   //#region Declare State
   const [isOpen, setIsOpen] = useState(false);
-  const [travellersInfo, setTravellersInfo] = useState({
-    adults: 1,
-    children: 0,
-    seatType: "Economy",
-    displayText: "1 Adult, 0 Children & Economy",
+  const [localInfo, setLocalInfo] = useState({
+    adults: value?.adults || 1,
+    children: value?.children || 0,
+    infants: value?.infants || 0,
+    seatType: value?.seatType || "Economy",
+    displayText: value?.displayText || "1 & Economy",
   });
+  const dropdownRef = useRef(null); // Ref cho toàn bộ dropdown
   //#endregion Declare State
 
   //#region Implement Hook
+  useEffect(() => {
+    // Cập nhật localInfo khi value từ parent thay đổi
+    setLocalInfo({
+      adults: value?.adults || 1,
+      children: value?.children || 0,
+      infants: value?.infants || 0,
+      seatType: value?.seatType || "Economy",
+      displayText: value?.displayText || "1 & Economy",
+    });
+  }, [value]);
+
+  // Xử lý click outside để đóng dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen]);
   //#endregion Implement Hook
 
   //#region Handle Function
-  const handleTravellersChange = (field, value) => {
-    let updatedInfo = { ...travellersInfo, [field]: value };
-    if (field === "adults" || field === "children") {
-      updatedInfo = {
-        ...updatedInfo,
-        displayText: `${updatedInfo.adults} Adult${
-          updatedInfo.adults > 1 ? "s" : ""
-        }, ${updatedInfo.children} Child${
-          updatedInfo.children > 1 ? "ren" : ""
-        } & ${updatedInfo.seatType}`,
-      };
-    } else if (field === "seatType") {
-      updatedInfo = {
-        ...updatedInfo,
-        displayText: `${updatedInfo.adults} Adult${
-          updatedInfo.adults > 1 ? "s" : ""
-        }, ${updatedInfo.children} Child${
-          updatedInfo.children > 1 ? "ren" : ""
-        } & ${value}`,
-      };
-    }
-    setTravellersInfo(updatedInfo);
-    onChange(updatedInfo); // Truyền dữ liệu lên parent
+  const handleCountChange = (type, delta) => {
+    setLocalInfo((prev) => {
+      let newCount = prev[type] + delta;
+      if (newCount < (type === "adults" ? 1 : 0)) return prev; // Adults min 1, others min 0
+      if (newCount > 9) return prev; // Max 9 cho mỗi loại (tùy chỉnh nếu cần)
+      if (type === "infants" && newCount > prev.adults) return prev; // Infants <= adults
+
+      const updated = { ...prev, [type]: newCount };
+      const total = updated.adults + updated.children; // Tổng không tính infants
+      updated.displayText = `${total} & ${updated.seatType}`;
+
+      onChange(updated); // Truyền ngay lên parent
+      return updated;
+    });
   };
 
-  const handleBlur = () => {
-    setTimeout(() => setIsOpen(false), 200); // Đóng dropdown sau khi mất focus
+  const handleSeatChange = (seatType) => {
+    setLocalInfo((prev) => {
+      const updated = { ...prev, seatType };
+      const total = updated.adults + updated.children;
+      updated.displayText = `${total} & ${updated.seatType}`;
+
+      onChange(updated); // Truyền ngay lên parent
+      return updated;
+    });
   };
   //#endregion Handle Function
 
   return (
-    <div className="relative">
+    <div className="relative" ref={dropdownRef}>
       <label className="block text-gray-700 mb-2">Travellers & Seat</label>
       <div
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full p-2 border border-gray-300 rounded cursor-pointer"
-        onBlur={handleBlur}
+        className={`w-full p-2 border border-gray-300 rounded cursor-pointer ${
+          className || ""
+        }`}
+        tabIndex={0}
       >
-        {travellersInfo.displayText}
+        {localInfo.displayText}
       </div>
       {isOpen && (
-        <div className="absolute z-50 w-full bg-white border border-gray-300 rounded mt-1 p-4">
-          <div className="mb-2">
-            <label className="block text-gray-700">Adults</label>
-            <input
-              type="number"
-              min="1"
-              value={travellersInfo.adults}
-              onChange={(e) =>
-                handleTravellersChange(
-                  "adults",
-                  Math.max(1, parseInt(e.target.value) || 1)
-                )
-              }
-              className="w-full p-2 border rounded"
-            />
+        <div className="absolute z-50 w-full bg-white border border-gray-300 rounded mt-1 p-4 shadow-lg">
+          <div className="mb-4">
+            <label className="block text-gray-700 font-medium">Adults</label>
+            <div className="flex items-center justify-between border border-gray-300 rounded p-2">
+              <button
+                type="button"
+                onClick={() => handleCountChange("adults", -1)}
+                className="text-xl font-bold text-gray-700 hover:text-black"
+              >
+                -
+              </button>
+              <span className="text-lg">{localInfo.adults}</span>
+              <button
+                type="button"
+                onClick={() => handleCountChange("adults", 1)}
+                className="text-xl font-bold text-gray-700 hover:text-black"
+              >
+                +
+              </button>
+            </div>
           </div>
-          <div className="mb-2">
-            <label className="block text-gray-700">Children</label>
-            <input
-              type="number"
-              min="0"
-              value={travellersInfo.children}
-              onChange={(e) =>
-                handleTravellersChange(
-                  "children",
-                  Math.max(0, parseInt(e.target.value) || 0)
-                )
-              }
-              className="w-full p-2 border rounded"
-            />
+          <div className="mb-4">
+            <label className="block text-gray-700 font-medium">Children</label>
+            <div className="flex items-center justify-between border border-gray-300 rounded p-2">
+              <button
+                type="button"
+                onClick={() => handleCountChange("children", -1)}
+                className="text-xl font-bold text-gray-700 hover:text-black"
+              >
+                -
+              </button>
+              <span className="text-lg">{localInfo.children}</span>
+              <button
+                type="button"
+                onClick={() => handleCountChange("children", 1)}
+                className="text-xl font-bold text-gray-700 hover:text-black"
+              >
+                +
+              </button>
+            </div>
+          </div>
+          <div className="mb-4">
+            <label className="block text-gray-700 font-medium">Infants</label>
+            <div className="flex items-center justify-between border border-gray-300 rounded p-2">
+              <button
+                type="button"
+                onClick={() => handleCountChange("infants", -1)}
+                className="text-xl font-bold text-gray-700 hover:text-black"
+              >
+                -
+              </button>
+              <span className="text-lg">{localInfo.infants}</span>
+              <button
+                type="button"
+                onClick={() => handleCountChange("infants", 1)}
+                className="text-xl font-bold text-gray-700 hover:text-black"
+              >
+                +
+              </button>
+            </div>
           </div>
           <div>
-            <label className="block text-gray-700">Seat Type</label>
-            <select
-              value={travellersInfo.seatType}
-              onChange={(e) =>
-                handleTravellersChange("seatType", e.target.value)
-              }
-              className="w-full p-2 border rounded"
-            >
-              <option value="Economy">Economy</option>
-              <option value="Business">Business</option>
-              <option value="First">First</option>
-            </select>
+            <label className="block text-gray-700 font-medium mb-2">
+              Select Seat Type
+            </label>
+            <div className="grid grid-cols-1 gap-2">
+              {seatTypes.map((type) => (
+                <div
+                  key={type}
+                  onClick={() => handleSeatChange(type)} // Chọn trực tiếp bằng click
+                  className={`p-2 border rounded cursor-pointer text-center ${
+                    localInfo.seatType === type
+                      ? "bg-blue-500 text-white"
+                      : "bg-white text-gray-700"
+                  } hover:bg-blue-200`}
+                >
+                  {type}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}

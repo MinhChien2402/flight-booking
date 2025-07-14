@@ -20,10 +20,15 @@ import { resetReservationDetailState } from "../../ultis/redux/reservationDetail
 import { downloadReservationPdf } from "../../thunk/pdfGenerationThunk";
 import { getReservationDetail } from "../../thunk/reservationDetailThunk";
 import { getUserReservations } from "../../thunk/userReservationThunk";
-import { rescheduleReservation } from "../../thunk/reservationThunk";
+import {
+  rescheduleReservation,
+  cancelReservation,
+  getCancelRules,
+} from "../../thunk/reservationThunk";
 import { searchFlightSchedules } from "../../thunk/flightScheduleThunk";
 
 // Styles, images, icons
+
 const ReservationsPage = () => {
   //#region Declare Hook
   const navigate = useNavigate();
@@ -41,7 +46,8 @@ const ReservationsPage = () => {
     reservationDetail,
     loading: detailLoading,
     error: detailError,
-  } = useSelector((state) => state.reservationDetail);
+    cancelSuccess,
+  } = useSelector((state) => state.reservationDetail); // Bỏ cancelRules, cancelLoading, cancelError vì dùng local state
 
   const {
     loading: pdfLoading,
@@ -70,6 +76,9 @@ const ReservationsPage = () => {
   const [selectedNewFlightId, setSelectedNewFlightId] = useState(null);
   const [searchParams, setSearchParams] = useState({});
   const [rescheduling, setRescheduling] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReservationId, setCancelReservationId] = useState(null);
+  const [cancelData, setCancelData] = useState(null); // Local state cho dữ liệu cancel
   //#endregion Declare State
 
   //#region Implement Hook
@@ -102,13 +111,36 @@ const ReservationsPage = () => {
       detailLoading,
       detailError,
       isModalOpen,
+      cancelSuccess,
     });
     if (isModalOpen && !detailLoading && reservationDetail) {
       console.log("Modal should be visible with data:", reservationDetail);
     } else if (isModalOpen && detailLoading) {
       console.log("Modal delayed due to loading:", detailLoading);
     }
-  }, [reservationDetail, detailLoading, detailError, isModalOpen]);
+
+    if (cancelSuccess) {
+      toast.success("Reservation cancelled successfully!");
+      dispatch(getUserReservations()); // Cập nhật danh sách đặt chỗ
+      dispatch(resetReservationDetailState()); // Reset trạng thái
+      setShowCancelModal(false);
+      setCancelReservationId(null);
+      setCancelData(null); // Reset local data
+    }
+  }, [
+    reservationDetail,
+    detailLoading,
+    detailError,
+    isModalOpen,
+    cancelSuccess,
+    dispatch,
+  ]);
+
+  useEffect(() => {
+    if (showCancelModal && cancelData) {
+      console.log("Cancel modal opened with rules:", cancelData);
+    }
+  }, [showCancelModal, cancelData]);
   //#endregion Implement Hook
 
   //#region Handle Function
@@ -129,7 +161,6 @@ const ReservationsPage = () => {
       .unwrap()
       .then((response) => {
         console.log("Reservation detail fetched successfully:", response);
-        // Kiểm tra cả Tickets và tickets để xử lý trường hợp không nhất quán
         if (
           response &&
           ((Array.isArray(response.tickets) && response.tickets.length > 0) ||
@@ -139,7 +170,7 @@ const ReservationsPage = () => {
             "Data valid, opening modal with tickets:",
             response.tickets || response.Tickets
           );
-          setIsModalOpen(true); // Đảm bảo mở modal
+          setIsModalOpen(true);
         } else {
           console.warn(
             "No valid tickets found for reservationId:",
@@ -178,12 +209,6 @@ const ReservationsPage = () => {
       .catch((error) => {
         toast.error(`Error downloading PDF: ${error.message || error}`);
       });
-  };
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setSelectedReservationId(null);
-    dispatch(resetReservationDetailState());
   };
 
   const handleReschedule = (reservationId) => {
@@ -246,7 +271,7 @@ const ReservationsPage = () => {
       setShowRescheduleModal(false);
       setSelectedNewFlightId(null);
       if (detailResponse && Array.isArray(detailResponse.tickets)) {
-        setIsModalOpen(true); // Mở modal để hiển thị thông tin mới
+        setIsModalOpen(true);
       } else {
         toast.error("Dữ liệu đặt chỗ mới không đầy đủ.");
       }
@@ -257,9 +282,55 @@ const ReservationsPage = () => {
     }
   };
 
+  const handleCancel = (reservationId) => {
+    setCancelReservationId(reservationId);
+    dispatch(getCancelRules(reservationId))
+      .unwrap()
+      .then((response) => {
+        console.log("getCancelRules response:", response);
+        setCancelData(response); // Set local state
+        setShowCancelModal(true);
+      })
+      .catch((error) => {
+        console.error("getCancelRules error:", error);
+        toast.error(`Không thể lấy quy định hủy: ${error.message || error}`);
+      });
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!cancelReservationId) {
+      toast.error("Mã đặt chỗ không hợp lệ!");
+      return;
+    }
+    try {
+      const response = await dispatch(
+        cancelReservation(cancelReservationId)
+      ).unwrap();
+      toast.success(
+        `Reservation cancelled successfully! Cancellation Number: ${response.cancellationNumber}`
+      );
+      setCancelData(null); // Reset local data sau khi success
+    } catch (error) {
+      toast.error(`Lỗi khi hủy đặt chỗ: ${error.message || error}`);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedReservationId(null);
+    dispatch(resetReservationDetailState());
+  };
+
   const handleCloseRescheduleModal = () => {
     setShowRescheduleModal(false);
     setSelectedNewFlightId(null);
+  };
+
+  const handleCloseCancelModal = () => {
+    setShowCancelModal(false);
+    setCancelReservationId(null);
+    setCancelData(null); // Reset local data khi close
+    dispatch(resetReservationDetailState());
   };
 
   const mappedReservations = useMemo(() => {
@@ -353,6 +424,7 @@ const ReservationsPage = () => {
                 onAirlineClick={handleAirlineClick}
                 onDownloadPdf={handleDownloadPdf}
                 onReschedule={handleReschedule}
+                onCancel={handleCancel}
               />
             )}
         </div>
@@ -365,7 +437,7 @@ const ReservationsPage = () => {
       />
       {showRescheduleModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-11/12 max-w-md">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-[64rem] w-full mx-4">
             <h3 className="text-xl font-semibold mb-4 text-gray-800 border-b border-gray-200 pb-2">
               Reschedule Your Flight
             </h3>
@@ -424,6 +496,79 @@ const ReservationsPage = () => {
               >
                 {rescheduling ? "Rescheduling..." : "Confirm Reschedule"}
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showCancelModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center z-50">
+          <div className="bg-white p-6 rounded-md shadow-md max-w-sm w-full">
+            <h2 className="text-lg font-semibold mb-4">Confirm Cancellation</h2>
+            {cancelData ? (
+              <div className="space-y-4">
+                <p>
+                  <strong>Reservation ID:</strong>{" "}
+                  {cancelData.reservationId || "N/A"}
+                </p>
+                <p>
+                  <strong>Confirmation Number:</strong>{" "}
+                  {cancelData.confirmationNumber || "N/A"}
+                </p>
+                <p>
+                  <strong>Status:</strong> {cancelData.status || "N/A"}
+                </p>
+                <p>
+                  <strong>Cancellation Rules:</strong>{" "}
+                  {cancelData.cancellationRules || "No rules available"}
+                </p>
+                <p>
+                  <strong>Refund Percentage:</strong>
+                  {cancelData.refundPercentage !== undefined
+                    ? `${cancelData.refundPercentage.toFixed(1)}%`
+                    : "N/A"}
+                </p>
+                <p>
+                  <strong>Refund Amount:</strong> $
+                  {cancelData.refundAmount !== undefined
+                    ? cancelData.refundAmount.toFixed(2)
+                    : "N/A"}
+                </p>
+                <div>
+                  <strong>Tickets:</strong>
+                  <ul className="list-disc pl-5">
+                    {cancelData.tickets && cancelData.tickets.length > 0 ? (
+                      cancelData.tickets.map((ticket, index) => (
+                        <li key={index}>
+                          {ticket.airline || "N/A"} from {ticket.from || "N/A"}{" "}
+                          to {ticket.to || "N/A"}({ticket.departure || "N/A"} -{" "}
+                          {ticket.arrival || "N/A"})
+                        </li>
+                      ))
+                    ) : (
+                      <li>No tickets available</li>
+                    )}
+                  </ul>
+                </div>
+              </div>
+            ) : (
+              <p className="text-gray-600 mb-6">
+                No cancellation data available.
+              </p>
+            )}
+            <div className="flex justify-end gap-4 mt-4">
+              <button
+                className="bg-gray-300 text-gray-800 py-1 px-4 rounded"
+                onClick={handleCloseCancelModal}
+              >
+                Cancel
+              </button>
+              <button
+                className="bg-pink-600 text-white py-1 px-4 rounded"
+                onClick={handleConfirmCancel}
+                disabled={!cancelData}
+              >
+                Confirm Cancellation
+              </button>
             </div>
           </div>
         </div>

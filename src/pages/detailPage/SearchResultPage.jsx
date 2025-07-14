@@ -71,6 +71,7 @@ const SearchResultPage = () => {
       TripType: searchParams.TripType || "oneWay",
       Adults: parseInt(searchParams.Adults) || 1,
       Children: parseInt(searchParams.Children) || 0,
+      Infants: parseInt(searchParams.Infants) || 0, // Thêm Infants
       FlightClass: searchParams.FlightClass || "Economy",
     }),
     [
@@ -81,6 +82,7 @@ const SearchResultPage = () => {
       searchParams.TripType,
       searchParams.Adults,
       searchParams.Children,
+      searchParams.Infants, // Thêm vào dependencies
       searchParams.FlightClass,
     ]
   );
@@ -133,7 +135,8 @@ const SearchResultPage = () => {
     const basePricePerAdult = ticket?.price || 300; // Giá cơ bản cho một người lớn
     const adultPrice = basePricePerAdult * memoizedSearchParams.Adults; // Tổng giá cho người lớn
     const childPrice = basePricePerAdult * 0.7 * memoizedSearchParams.Children; // Tổng giá cho trẻ em (70% giá người lớn)
-    const totalPrice = adultPrice + childPrice; // Tổng giá
+    const infantPrice = basePricePerAdult * 0.1 * memoizedSearchParams.Infants; // Tổng giá cho trẻ sơ sinh (10% giá người lớn, theo thực tế)
+    const totalPrice = adultPrice + childPrice + infantPrice; // Tổng giá
 
     const departureTime = ticket?.departureTime
       ? new Date(ticket.departureTime)
@@ -337,9 +340,18 @@ const SearchResultPage = () => {
 
   const calculateTotalPrice = () => {
     let total = 0;
-    if (selectedOutboundTicket) total += selectedOutboundTicket.price || 300;
-    if (selectedReturnTicket && memoizedSearchParams.TripType === "roundTrip")
-      total += selectedReturnTicket.price || 300;
+    const adults = memoizedSearchParams.Adults;
+    const children = memoizedSearchParams.Children;
+    const infants = memoizedSearchParams.Infants;
+
+    if (selectedOutboundTicket) {
+      const base = selectedOutboundTicket.price || 300;
+      total += base * adults + base * 0.7 * children + base * 0.1 * infants;
+    }
+    if (selectedReturnTicket && memoizedSearchParams.TripType === "roundTrip") {
+      const base = selectedReturnTicket.price || 300;
+      total += base * adults + base * 0.7 * children + base * 0.1 * infants;
+    }
     return `$${total.toFixed(2)}`;
   };
   //#endregion Handle Function

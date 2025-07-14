@@ -49,8 +49,14 @@ const ReservationDetailModal = ({ reservationId, isOpen, onClose }) => {
   if (!reservationId) {
     //#endregion Implement Hook
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-        <div className="bg-white p-6 rounded-lg max-w-md w-full text-center">
+      <div
+        className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
+        onClick={onClose}
+      >
+        <div
+          className="bg-white p-6 rounded-lg max-w-md w-full text-center"
+          onClick={(e) => e.stopPropagation()}
+        >
           <p className="text-gray-600">No reservation code provided.</p>
           <Button primary className="mt-2 px-4 py-2 rounded" onClick={onClose}>
             Close
@@ -67,8 +73,14 @@ const ReservationDetailModal = ({ reservationId, isOpen, onClose }) => {
     Object.keys(reservationDetail).length === 0
   ) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-        <div className="bg-white p-6 rounded-lg max-w-md w-full text-center">
+      <div
+        className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
+        onClick={onClose}
+      >
+        <div
+          className="bg-white p-6 rounded-lg max-w-md w-full text-center"
+          onClick={(e) => e.stopPropagation()}
+        >
           <p className="text-red-600">
             Error: {error || "No reservation or non -valid data found."}
           </p>
@@ -196,8 +208,14 @@ const ReservationDetailModal = ({ reservationId, isOpen, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-      <div className="bg-white p-6 rounded-lg max-w-md w-full">
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white p-6 rounded-lg max-w-md w-full max-h-[80vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2 className="text-xl font-semibold mb-4 text-center">
           Reservation Details
         </h2>

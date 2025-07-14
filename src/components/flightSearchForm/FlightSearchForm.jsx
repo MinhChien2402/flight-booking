@@ -5,7 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { createSelector } from "reselect";
 import { toast } from "react-toastify";
 // Components, Layouts, Pages
-import TravellersDropdown from "../traverllerDropdown/TravellersDropdown";
+import TravellersDropdown from "../traverllerDropdown/TravellersDropdown"; // Sửa typo nếu cần thành "travellersDropdown"
 import CityAutocomplete from "../cityAutocomplete/CityAutocomplete";
 // Others
 import { searchFlightSchedules } from "../../thunk/flightScheduleThunk";
@@ -59,11 +59,15 @@ const FlightSearchForm = ({
   );
   const [returnDate, setReturnDate] = useState(defaultData.ReturnDate || "");
   const [travellersInfo, setTravellersInfo] = useState({
-    displayText: defaultData.Adults
-      ? `${defaultData.Adults} & ${defaultData.FlightClass || "Economy"}`
-      : "1 & Economy",
+    displayText:
+      defaultData.Adults || defaultData.Children
+        ? `${(defaultData.Adults || 0) + (defaultData.Children || 0)} & ${
+            defaultData.FlightClass || "Economy"
+          }`
+        : "1 & Economy",
     adults: defaultData.Adults ? Math.max(1, defaultData.Adults) : 1,
     children: defaultData.Children || 0,
+    infants: defaultData.Infants || 0, // Added infants
     seatType: defaultData.FlightClass || "Economy",
   });
   const [ticketPrice, setTicketPrice] = useState(null);
@@ -106,12 +110,16 @@ const FlightSearchForm = ({
     setDepartureDate(formatDefaultDate(defaultData.DepartureDate));
     setReturnDate(formatDefaultDate(defaultData.ReturnDate));
 
+    const totalPassengers =
+      (defaultData.Adults || 0) + (defaultData.Children || 0);
     const newTravellersInfo = {
-      displayText: defaultData.Adults
-        ? `${defaultData.Adults} & ${defaultData.FlightClass || "Economy"}`
-        : "1 & Economy",
+      displayText:
+        totalPassengers > 0
+          ? `${totalPassengers} & ${defaultData.FlightClass || "Economy"}`
+          : "1 & Economy",
       adults: defaultData.Adults ? Math.max(1, defaultData.Adults) : 1,
       children: defaultData.Children || 0,
+      infants: defaultData.Infants || 0, // Added infants
       seatType: defaultData.FlightClass || "Economy",
     };
     setTravellersInfo(newTravellersInfo);
@@ -130,6 +138,7 @@ const FlightSearchForm = ({
     defaultData.ReturnDate,
     defaultData.Adults,
     defaultData.Children,
+    defaultData.Infants,
     defaultData.FlightClass,
     dispatch,
   ]);
@@ -153,7 +162,8 @@ const FlightSearchForm = ({
     const basePrice = 300;
     const adultPrice = basePrice * travellersInfo.adults;
     const childPrice = basePrice * 0.7 * travellersInfo.children;
-    const totalPrice = adultPrice + childPrice;
+    const infantPrice = basePrice * 0.1 * travellersInfo.infants; // Added infant price (example 10%)
+    const totalPrice = adultPrice + childPrice + infantPrice;
     setTicketPrice(totalPrice);
   }, [travellersInfo]);
   //#endregion Implement Hook
@@ -260,7 +270,12 @@ const FlightSearchForm = ({
       toast.error("The return date must be after the departure date!");
       return false;
     }
-    if (travellersInfo.adults + travellersInfo.children <= 0) {
+    if (
+      travellersInfo.adults +
+        travellersInfo.children +
+        travellersInfo.infants <=
+      0
+    ) {
       toast.error("There must be at least 1 passenger!");
       return false;
     }
@@ -292,6 +307,7 @@ const FlightSearchForm = ({
       TripType: tripType || "oneWay",
       Adults: travellersInfo.adults || 1,
       Children: travellersInfo.children || 0,
+      Infants: travellersInfo.infants || 0, // Added infants
       FlightClass: travellersInfo.seatType.toLowerCase() || "economy",
       ReturnDate:
         tripType === "roundTrip" && returnDate
@@ -354,8 +370,8 @@ const FlightSearchForm = ({
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="z-40">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+            <div className="w-full">
               <CityAutocomplete
                 value={departureCity}
                 onChange={(value) => {
@@ -364,9 +380,10 @@ const FlightSearchForm = ({
                 }}
                 placeholder="Select Departure City"
                 label="Departure City"
+                className="w-full"
               />
             </div>
-            <div className="z-30">
+            <div className="w-full">
               <CityAutocomplete
                 value={destinationCity}
                 onChange={(value) => {
@@ -375,9 +392,10 @@ const FlightSearchForm = ({
                 }}
                 placeholder="Select Destination City"
                 label="Destination City"
+                className="w-full"
               />
             </div>
-            <div>
+            <div className="w-full">
               <label className="block text-gray-700 mb-2">Departure Date</label>
               <input
                 type="date"
@@ -393,20 +411,22 @@ const FlightSearchForm = ({
                   setDepartureDate(newDate);
                 }}
                 min={new Date().toISOString().split("T")[0]}
-                className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            <div className="relative z-20">
+            <div className="w-full">
               <TravellersDropdown
                 value={travellersInfo}
                 onChange={handleTravellersChange}
+                className="w-full p-3 border border-gray-300 rounded-lg"
               />
             </div>
           </div>
           {tripType === "roundTrip" && (
-            <div className="mt-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
+            <div className="mt-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+                <div className="md:col-span-2"></div>
+                <div className="w-full">
                   <label className="block text-gray-700 mb-2">
                     Return Date
                   </label>
@@ -426,9 +446,10 @@ const FlightSearchForm = ({
                     min={
                       departureDate || new Date().toISOString().split("T")[0]
                     }
-                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
+                <div className="md:col-span-1"></div>
               </div>
             </div>
           )}

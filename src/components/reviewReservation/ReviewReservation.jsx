@@ -58,6 +58,7 @@ const ReviewReservation = () => {
   const [passengerInfo, setPassengerInfo] = useState(() => {
     const adults = parseInt(searchParams.Adults) || 1;
     const children = parseInt(searchParams.Children) || 0;
+    const infants = parseInt(searchParams.Infants) || 0; // Thêm Infants
     const passengers = [];
     for (let i = 0; i < adults; i++) {
       passengers.push({
@@ -79,6 +80,19 @@ const ReviewReservation = () => {
         FirstName: "",
         LastName: "",
         DateOfBirth: "",
+        PassportNumber: "",
+        PassportExpiry: "",
+      });
+    }
+    for (let i = 0; i < infants; i++) {
+      passengers.push({
+        type: "Infant",
+        index: i + 1,
+        Title: "",
+        FirstName: "",
+        LastName: "",
+        DateOfBirth: "",
+        PassportNumber: "",
         PassportExpiry: "",
       });
     }
@@ -87,6 +101,19 @@ const ReviewReservation = () => {
 
   // Lấy ngày hiện tại
   const today = new Date().toISOString().split("T")[0];
+
+  // Hàm tính tuổi từ DOB
+  const calculateAge = (birthDate) => {
+    if (!birthDate) return 0;
+    const today = new Date();
+    const birth = new Date(birthDate);
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age;
+  };
 
   // Tính total từ outbound và return flight (nếu có)
   const outboundPrice = outboundFlight?.price
@@ -98,16 +125,28 @@ const ReviewReservation = () => {
   const total = (outboundPrice + returnPrice).toFixed(2);
 
   useEffect(() => {
-    const isValid = passengerInfo.every(
-      (passenger) =>
-        passenger.Title &&
-        passenger.FirstName &&
-        passenger.LastName &&
-        passenger.DateOfBirth &&
-        passenger.PassportNumber &&
-        passenger.PassportExpiry
-    );
-    setIsFormValid(!!isValid);
+    const isValid = passengerInfo.every((passenger) => {
+      // Kiểm tra các trường cơ bản và passport cho tất cả
+      if (
+        !passenger.Title ||
+        !passenger.FirstName ||
+        !passenger.LastName ||
+        !passenger.DateOfBirth ||
+        !passenger.PassportNumber ||
+        !passenger.PassportExpiry
+      ) {
+        return false;
+      }
+
+      // Validate DOB dựa trên loại
+      const age = calculateAge(passenger.DateOfBirth);
+      if (passenger.type === "Adult" && age < 12) return false;
+      if (passenger.type === "Child" && (age < 2 || age >= 12)) return false;
+      if (passenger.type === "Infant" && age >= 2) return false;
+
+      return true;
+    });
+    setIsFormValid(isValid);
   }, [passengerInfo]);
 
   useEffect(() => {
@@ -146,7 +185,15 @@ const ReviewReservation = () => {
     );
   };
 
-  const handleConfirmClick = () => setModalOpen(true);
+  const handleConfirmClick = () => {
+    if (!isFormValid) {
+      toast.warning(
+        "Vui lòng kiểm tra thông tin hành khách, đặc biệt là ngày sinh không hợp lệ với loại hành khách hoặc các trường bắt buộc chưa điền."
+      );
+      return;
+    }
+    setModalOpen(true);
+  };
 
   const handleCancelModal = () => setModalOpen(false);
 
@@ -412,6 +459,7 @@ const ReviewReservation = () => {
                   name="PassportExpiry"
                   value={passenger.PassportExpiry}
                   onChange={(e) => handleChange(index, e)}
+                  min={today} // Đảm bảo expiry không quá khứ
                   className="border p-2 rounded w-full"
                   required
                 />

@@ -20,4 +20,19 @@ axiosInstance.interceptors.response.use(
     }
 );
 
+// Thêm interceptor để xử lý request và thêm token
+axiosInstance.interceptors.request.use(
+    (config) => {
+        const token = localStorage.getItem("token");
+        console.log("Token from localStorage:", token); // Debug token
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        } else {
+            console.warn("No token found in localStorage");
+        }
+        return config;
+    },
+    (error) => Promise.reject(error)
+);
+
 export default axiosInstance;
