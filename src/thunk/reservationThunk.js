@@ -1,6 +1,20 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import axiosInstance from "../api/axiosInstance";
 
+export const getAllReservations = createAsyncThunk(
+    "reservation/getAllReservations",
+    async (_, thunkAPI) => {
+        try {
+            const response = await axiosInstance.get("/Reservation/all", {
+                headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+            });
+            return response.data;
+        } catch (error) {
+            return thunkAPI.rejectWithValue(error.response?.data?.message || error.message);
+        }
+    }
+);
+
 export const createReservation = createAsyncThunk(
     "reservation/createReservation",
     async (reservationData, { rejectWithValue }) => {

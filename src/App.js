@@ -19,6 +19,7 @@ import CountriesPage from "./pages/countriesPage/CountriesPage";
 import AircraftsPage from "./pages/aircraftsPage/AircraftsPage"; // Đổi từ PlanesPage
 import FlightSchedulesPage from "./pages/flightSchedulesPage/FlightSchedulesPage"; // Đổi từ TicketPage
 import WelcomePage from "./components/welcomePage/WelcomePage";
+import AdminOrders from "./components/adminOder/AdminOder";
 // Others
 import { Provider } from "react-redux";
 import { store } from "../src/ultis/store";
@@ -46,6 +47,7 @@ const App = () => (
           <Route path="/aircrafts" element={<AircraftsPage />} />
           <Route path="/flight-schedules" element={<FlightSchedulesPage />} />
           <Route path="/thank-you" element={<ThankYouPage />} />
+          <Route path="/orders" element={<AdminOrders />} />
         </Routes>
 
         <ToastContainer

@@ -67,6 +67,7 @@ const AdminDashboard = () => {
               "Countries",
               "Aircrafts",
               "FlightSchedules",
+              "Orders",
             ].map((item) => (
               <div
                 key={item}
