@@ -71,7 +71,7 @@ const SearchResultPage = () => {
       TripType: searchParams.TripType || "oneWay",
       Adults: parseInt(searchParams.Adults) || 1,
       Children: parseInt(searchParams.Children) || 0,
-      Infants: parseInt(searchParams.Infants) || 0, // Thêm Infants
+      Infants: parseInt(searchParams.Infants) || 0,
       FlightClass: searchParams.FlightClass || "Economy",
     }),
     [

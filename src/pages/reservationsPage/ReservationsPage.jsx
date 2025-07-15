@@ -47,7 +47,7 @@ const ReservationsPage = () => {
     loading: detailLoading,
     error: detailError,
     cancelSuccess,
-  } = useSelector((state) => state.reservationDetail); // Bỏ cancelRules, cancelLoading, cancelError vì dùng local state
+  } = useSelector((state) => state.reservationDetail);
 
   const {
     loading: pdfLoading,
@@ -78,41 +78,24 @@ const ReservationsPage = () => {
   const [rescheduling, setRescheduling] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReservationId, setCancelReservationId] = useState(null);
-  const [cancelData, setCancelData] = useState(null); // Local state cho dữ liệu cancel
+  const [cancelData, setCancelData] = useState(null);
   //#endregion Declare State
 
   //#region Implement Hook
   useEffect(() => {
     dispatch(resetReservationDetailState());
-
-    if (
-      !reservationsLoading &&
-      (!reservations ||
-        reservations.length === 0 ||
-        reservations.some((r) => !r.tickets?.length))
-    ) {
-      dispatch(getUserReservations())
-        .unwrap()
-        .then((payload) => {
-          console.log("Fetched reservations:", payload);
-        })
-        .catch((error) => {
-          console.error("Fetch error:", error);
-          toast.error(
-            `Failed to fetch reservations: ${error.message || error}`
-          );
-        });
-    }
-  }, [dispatch, reservationsLoading, reservations]);
+    dispatch(getUserReservations())
+      .unwrap()
+      .then((payload) => {
+        console.log("Fetched reservations:", payload);
+      })
+      .catch((error) => {
+        console.error("Fetch error:", error);
+        toast.error(`Failed to fetch reservations: ${error.message || error}`);
+      });
+  }, [dispatch]);
 
   useEffect(() => {
-    console.log("Reservation Detail State:", {
-      reservationDetail,
-      detailLoading,
-      detailError,
-      isModalOpen,
-      cancelSuccess,
-    });
     if (isModalOpen && !detailLoading && reservationDetail) {
       console.log("Modal should be visible with data:", reservationDetail);
     } else if (isModalOpen && detailLoading) {
@@ -120,6 +103,7 @@ const ReservationsPage = () => {
     }
 
     if (cancelSuccess) {
+      console.log("Cancel success detected, closing modal and refreshing...");
       toast.success("Reservation cancelled successfully!");
       dispatch(getUserReservations()); // Cập nhật danh sách đặt chỗ
       dispatch(resetReservationDetailState()); // Reset trạng thái
@@ -306,11 +290,18 @@ const ReservationsPage = () => {
       const response = await dispatch(
         cancelReservation(cancelReservationId)
       ).unwrap();
+      console.log("Cancel response:", response);
       toast.success(
         `Reservation cancelled successfully! Cancellation Number: ${response.cancellationNumber}`
       );
-      setCancelData(null); // Reset local data sau khi success
+      // Đóng modal và reset ngay lập tức (không chờ useEffect)
+      setShowCancelModal(false);
+      setCancelReservationId(null);
+      setCancelData(null);
+      // Refresh list reservations
+      dispatch(getUserReservations());
     } catch (error) {
+      console.error("Cancel error:", error);
       toast.error(`Lỗi khi hủy đặt chỗ: ${error.message || error}`);
     }
   };
@@ -565,7 +556,7 @@ const ReservationsPage = () => {
               <button
                 className="bg-pink-600 text-white py-1 px-4 rounded"
                 onClick={handleConfirmCancel}
-                disabled={!cancelData}
+                disabled={detailLoading || !cancelData}
               >
                 Confirm Cancellation
               </button>
