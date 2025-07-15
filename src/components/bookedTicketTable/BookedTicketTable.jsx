@@ -9,6 +9,7 @@ import { FaTrash } from "react-icons/fa";
 // Others
 import { getUserReservations } from "../../thunk/userReservationThunk";
 import { confirmReservation } from "../../thunk/reservationThunk";
+import { downloadReservationPdf } from "../../thunk/pdfGenerationThunk";
 
 // Styles, images, icons
 import "react-toastify/dist/ReactToastify.css";
@@ -88,31 +89,22 @@ const BookedTicketsTable = ({
     [onAirlineClick]
   );
 
-  const handleDownloadPdf = async (reservationId) => {
-    try {
-      const response = await fetch(`/api/Reservation/${reservationId}/pdf`, {
-        method: "GET",
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  const handleDownloadPdf = (reservationId) => {
+    dispatch(downloadReservationPdf(reservationId))
+      .unwrap()
+      .then(() => {
+        toast.success("PDF downloaded successfully!", {
+          position: "top-right",
+          autoClose: 3000,
+        });
+      })
+      .catch((error) => {
+        console.error("Error downloading PDF:", error);
+        toast.error(`Lỗi: ${error || "Download failure"}`, {
+          position: "top-right",
+          autoClose: 3000,
+        });
       });
-      if (!response.ok) throw new Error("Failed to download PDF");
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `reservation_${reservationId}.pdf`;
-      a.click();
-      window.URL.revokeObjectURL(url);
-      toast.success("PDF downloaded successfully!", {
-        position: "top-right",
-        autoClose: 3000,
-      });
-    } catch (error) {
-      console.error("Error downloading PDF:", error);
-      toast.error(`Lỗi: ${error.message || "Download failure"}`, {
-        position: "top-right",
-        autoClose: 3000,
-      });
-    }
   };
 
   const handleConfirm = async (reservationId) => {
