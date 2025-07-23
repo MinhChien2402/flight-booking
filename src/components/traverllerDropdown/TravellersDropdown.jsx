@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef } from "react";
 // Others
 // Styles, images, icons
 
-const seatTypes = ["Economy", "Business", "First"]; // Thứ tự hợp lý: Economy đầu tiên
+const seatTypes = ["All", "Economy", "Business", "First"]; // Thứ tự hợp lý: Economy đầu tiên
 
 const TravellersDropdown = ({ value, onChange, className }) => {
   //#region Declare Hook

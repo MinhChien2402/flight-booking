@@ -58,7 +58,7 @@ const ReviewReservation = () => {
   const [passengerInfo, setPassengerInfo] = useState(() => {
     const adults = parseInt(searchParams.Adults) || 1;
     const children = parseInt(searchParams.Children) || 0;
-    const infants = parseInt(searchParams.Infants) || 0; // Thêm Infants
+    const infants = parseInt(searchParams.Infants) || 0;
     const passengers = [];
     for (let i = 0; i < adults; i++) {
       passengers.push({

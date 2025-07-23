@@ -248,6 +248,12 @@ const SearchResultPage = () => {
   const handleBlockTicket = async (ticketId) => {
     const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
     if (!isLoggedIn) {
+      sessionStorage.setItem(
+        "pendingSearchParams",
+        JSON.stringify(searchParams)
+      );
+      sessionStorage.setItem("pendingAction", "block");
+      sessionStorage.setItem("pendingTicketId", ticketId);
       navigate("/login");
       return;
     }
@@ -312,6 +318,18 @@ const SearchResultPage = () => {
   const handleBookNow = () => {
     const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
     if (!isLoggedIn) {
+      sessionStorage.setItem(
+        "pendingSearchParams",
+        JSON.stringify(memoizedSearchParams)
+      );
+      sessionStorage.setItem("pendingAction", "book");
+      sessionStorage.setItem(
+        "pendingSelections",
+        JSON.stringify({
+          outbound: selectedOutboundTicket,
+          return: selectedReturnTicket,
+        })
+      );
       navigate("/login");
       return;
     }

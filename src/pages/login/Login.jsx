@@ -29,26 +29,38 @@ const LoginPage = () => {
   //#region Handle Function
   const handleLogin = async (e) => {
     e.preventDefault();
-
     const email = e.target.email.value.trim();
     const password = e.target.password.value.trim();
-
     if (!email || !password) {
       toast.error("Please fill in both email and password.");
       return;
     }
-
-    const userData = {
-      email,
-      password,
-    };
-
+    const userData = { email, password };
     try {
       const result = await dispatch(loginUser(userData)).unwrap();
       localStorage.setItem("isLoggedIn", "true");
       localStorage.setItem("role", result.user.role);
       toast.success(result.message || "Login successful!");
-      setTimeout(() => navigate("/search"), 1000);
+
+      // Kiểm tra pending session từ tìm kiếm
+      const pendingParams = sessionStorage.getItem("pendingSearchParams");
+      if (pendingParams) {
+        const searchParams = JSON.parse(pendingParams);
+        // Xóa session sau khi đọc để tránh lặp
+        sessionStorage.removeItem("pendingSearchParams");
+        sessionStorage.removeItem("pendingAction");
+        sessionStorage.removeItem("pendingTicketId");
+        sessionStorage.removeItem("pendingSelections");
+
+        // Redirect về trang kết quả với state
+        setTimeout(
+          () => navigate("/search-results", { state: { searchParams } }),
+          1000
+        );
+      } else {
+        // Nếu không có pending, redirect về trang tìm kiếm mặc định
+        setTimeout(() => navigate("/search"), 1000);
+      }
     } catch (err) {
       console.error("Login error:", err);
       toast.error(err.message || "Invalid email or password.");
