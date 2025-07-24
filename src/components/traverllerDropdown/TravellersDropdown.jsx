@@ -5,16 +5,9 @@ import React, { useState, useEffect, useRef } from "react";
 // Others
 // Styles, images, icons
 
-const seatTypes = ["All", "Economy", "Business", "First"]; // Thứ tự hợp lý: Economy đầu tiên
+const seatTypes = ["All", "Economy", "Business", "First"];
 
 const TravellersDropdown = ({ value, onChange, className }) => {
-  //#region Declare Hook
-  //#endregion Declare Hook
-
-  //#region Selector
-  //#endregion Selector
-
-  //#region Declare State
   const [isOpen, setIsOpen] = useState(false);
   const [localInfo, setLocalInfo] = useState({
     adults: value?.adults || 1,
@@ -23,12 +16,9 @@ const TravellersDropdown = ({ value, onChange, className }) => {
     seatType: value?.seatType || "Economy",
     displayText: value?.displayText || "1 & Economy",
   });
-  const dropdownRef = useRef(null); // Ref cho toàn bộ dropdown
-  //#endregion Declare State
+  const dropdownRef = useRef(null);
 
-  //#region Implement Hook
   useEffect(() => {
-    // Cập nhật localInfo khi value từ parent thay đổi
     setLocalInfo({
       adults: value?.adults || 1,
       children: value?.children || 0,
@@ -38,7 +28,6 @@ const TravellersDropdown = ({ value, onChange, className }) => {
     });
   }, [value]);
 
-  // Xử lý click outside để đóng dropdown
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -52,21 +41,19 @@ const TravellersDropdown = ({ value, onChange, className }) => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isOpen]);
-  //#endregion Implement Hook
 
-  //#region Handle Function
   const handleCountChange = (type, delta) => {
     setLocalInfo((prev) => {
       let newCount = prev[type] + delta;
-      if (newCount < (type === "adults" ? 1 : 0)) return prev; // Adults min 1, others min 0
-      if (newCount > 9) return prev; // Max 9 cho mỗi loại (tùy chỉnh nếu cần)
-      if (type === "infants" && newCount > prev.adults) return prev; // Infants <= adults
+      if (newCount < (type === "adults" ? 1 : 0)) return prev;
+      if (newCount > 9) return prev;
+      if (type === "infants" && newCount > prev.adults) return prev;
 
       const updated = { ...prev, [type]: newCount };
-      const total = updated.adults + updated.children; // Tổng không tính infants
+      const total = updated.adults + updated.children;
       updated.displayText = `${total} & ${updated.seatType}`;
 
-      onChange(updated); // Truyền ngay lên parent
+      onChange(updated);
       return updated;
     });
   };
@@ -77,11 +64,10 @@ const TravellersDropdown = ({ value, onChange, className }) => {
       const total = updated.adults + updated.children;
       updated.displayText = `${total} & ${updated.seatType}`;
 
-      onChange(updated); // Truyền ngay lên parent
+      onChange(updated);
       return updated;
     });
   };
-  //#endregion Handle Function
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -96,7 +82,9 @@ const TravellersDropdown = ({ value, onChange, className }) => {
         {localInfo.displayText}
       </div>
       {isOpen && (
-        <div className="absolute z-50 w-full bg-white border border-gray-300 rounded mt-1 p-4 shadow-lg">
+        <div className="absolute z-50 w-full bg-white border border-gray-300 rounded mt-1 p-4 shadow-lg overflow-y-auto max-h-72">
+          {" "}
+          {/* Giữ overflow-y-auto max-h-72 để scroll */}
           <div className="mb-4">
             <label className="block text-gray-700 font-medium">Adults</label>
             <div className="flex items-center justify-between border border-gray-300 rounded p-2">
@@ -165,12 +153,12 @@ const TravellersDropdown = ({ value, onChange, className }) => {
               {seatTypes.map((type) => (
                 <div
                   key={type}
-                  onClick={() => handleSeatChange(type)} // Chọn trực tiếp bằng click
-                  className={`p-2 border rounded cursor-pointer text-center ${
+                  onClick={() => handleSeatChange(type)}
+                  className={`p-3 border rounded cursor-pointer text-center ${
                     localInfo.seatType === type
                       ? "bg-blue-500 text-white"
                       : "bg-white text-gray-700"
-                  } hover:bg-blue-200`}
+                  } hover:bg-blue-200 transition-colors`}
                 >
                   {type}
                 </div>

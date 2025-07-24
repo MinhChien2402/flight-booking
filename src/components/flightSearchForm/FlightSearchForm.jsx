@@ -21,6 +21,8 @@ const FlightSearchForm = ({
   onSearch = () => {},
   defaultData = {},
   preventNavigation = false,
+  disableDepartureCity = false,
+  disableDestinationCity = false,
 }) => {
   //#region Declare Hook
   const navigate = useNavigate();
@@ -232,29 +234,26 @@ const FlightSearchForm = ({
       return false;
     }
 
-    const departureAirport = effectiveAirports.find(
-      (a) => a.id && a.id.toString() === departureCity
-    );
-    const destinationAirport = effectiveAirports.find(
-      (a) => a.id && a.id.toString() === destinationCity
-    );
-    if (process.env.NODE_ENV === "development") {
-      console.log(
-        "Departure Airport found:",
-        departureAirport,
-        "Destination Airport found:",
-        destinationAirport
+    // Nếu disable, skip validate cho field đó, vì giá trị đã pre-fill
+    if (!disableDepartureCity) {
+      const departureAirport = effectiveAirports.find(
+        (a) => a.id && a.id.toString() === departureCity
       );
+      if (!departureCity || !departureAirport) {
+        toast.error("Please choose a valid departure airport!");
+        return false;
+      }
+    }
+    if (!disableDestinationCity) {
+      const destinationAirport = effectiveAirports.find(
+        (a) => a.id && a.id.toString() === destinationCity
+      );
+      if (!destinationCity || !destinationAirport) {
+        toast.error("Please choose a valid destination airport!");
+        return false;
+      }
     }
 
-    if (!departureCity || !departureAirport) {
-      toast.error("Please choose a valid departure airport!");
-      return false;
-    }
-    if (!destinationCity || !destinationAirport) {
-      toast.error("Please choose a valid destination airport!");
-      return false;
-    }
     if (!departureDate || !isValidDate(departureDate)) {
       toast.error("Please choose a valid departure date!");
       return false;
@@ -321,7 +320,7 @@ const FlightSearchForm = ({
 
     try {
       const result = await dispatch(
-        searchFlightSchedules(searchParams)
+        searchFlightSchedules(searchParams) // Sửa typo: searchFlightSchedules thay vì searchFlight (dựa trên import)
       ).unwrap();
       if (process.env.NODE_ENV === "development") {
         console.log("Search result:", result);
@@ -375,24 +374,32 @@ const FlightSearchForm = ({
               <CityAutocomplete
                 value={departureCity}
                 onChange={(value) => {
-                  console.log("Updated departureCity:", value);
-                  setDepartureCity(value);
+                  if (!disableDepartureCity) {
+                    // Chỉ cho change nếu không disable
+                    console.log("Updated departureCity:", value);
+                    setDepartureCity(value);
+                  }
                 }}
                 placeholder="Select Departure City"
                 label="Departure City"
                 className="w-full"
+                disabled={disableDepartureCity} // Truyền disabled vào component
               />
             </div>
             <div className="w-full">
               <CityAutocomplete
                 value={destinationCity}
                 onChange={(value) => {
-                  console.log("Updated destinationCity:", value);
-                  setDestinationCity(value);
+                  if (!disableDestinationCity) {
+                    // Chỉ cho change nếu không disable
+                    console.log("Updated destinationCity:", value);
+                    setDestinationCity(value);
+                  }
                 }}
                 placeholder="Select Destination City"
                 label="Destination City"
                 className="w-full"
+                disabled={disableDestinationCity} // Truyền disabled vào component
               />
             </div>
             <div className="w-full">

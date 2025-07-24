@@ -1,7 +1,6 @@
 // Libs
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { createSelector } from "reselect";
 
 // Thunks
 import { getListAirports } from "../../thunk/airportThunk";
@@ -9,41 +8,43 @@ import { getListAirports } from "../../thunk/airportThunk";
 // Others
 // Styles, images, icons
 
-const selectAirports = createSelector(
-  (state) => state.airports,
-  (airportsState) => airportsState?.data || []
-);
+// Định nghĩa constant fallback để tránh tạo array mới mỗi lần (fix warning re-render)
+const EMPTY_AIRPORTS = [];
 
 const CityAutocomplete = ({
   value: propValue,
   onChange,
   placeholder,
   label,
+  disabled = false,
 }) => {
   //#region Declare Hook
   const dispatch = useDispatch();
-  const { airports, loading, error } = useSelector((state) => {
-    const airportsState = state.airports || {
-      loading: false,
-      error: null,
-      data: [],
-    };
-    return {
-      airports: selectAirports(state),
-      loading: airportsState.loading,
-      error: airportsState.error,
-    };
-  });
   //#endregion Declare Hook
 
   //#region Declare State
   const [filteredAirports, setFilteredAirports] = useState([]);
   const [inputValue, setInputValue] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
-  const [initialLoad, setInitialLoad] = useState(true);
   //#endregion Declare State
 
+  // Sử dụng useSelector trực tiếp thay vì createSelector
+  const airportsState = useSelector(
+    (state) =>
+      state.airports || { loading: false, error: null, data: EMPTY_AIRPORTS }
+  );
+  const airports = airportsState.data || EMPTY_AIRPORTS;
+  const loading = airportsState.loading;
+  const error = airportsState.error;
+
   //#region Implement Hook
+  useEffect(() => {
+    // Fetch airports nếu chưa có
+    if (airports.length === 0 && !loading && !error) {
+      dispatch(getListAirports());
+    }
+  }, [airports.length, loading, error, dispatch]);
+
   useEffect(() => {
     console.log(
       "CityAutocomplete useEffect - propValue:",
@@ -57,40 +58,32 @@ const CityAutocomplete = ({
       "airports data:",
       airports.map((a) => ({ id: a.id, name: a.name }))
     );
-    // Fetch airports nếu chưa có dữ liệu
-    if (airports.length === 0 && !loading && !error) {
-      dispatch(getListAirports());
-    }
 
-    // Chỉ xử lý propValue khi airports có dữ liệu và là lần tải đầu tiên
-    if (initialLoad && propValue && airports.length > 0) {
-      const parsedValue = propValue ? propValue.toString() : "";
-      if (parsedValue && !isNaN(parseInt(parsedValue))) {
-        const selectedAirport = airports.find(
-          (airport) => airport.id && airport.id.toString() === parsedValue
-        );
-        if (selectedAirport) {
-          const newInputValue = `${selectedAirport.name || "Unknown"} (${
-            selectedAirport.code || "N/A"
-          })`;
+    if (propValue && airports.length > 0) {
+      const parsedValue = propValue.toString();
+      const selectedAirport = airports.find(
+        (airport) => airport.id?.toString() === parsedValue
+      );
+      if (selectedAirport) {
+        const newInputValue = `${selectedAirport.name || "Unknown"} (${
+          selectedAirport.code || "N/A"
+        })`;
+        if (newInputValue !== inputValue) {
           setInputValue(newInputValue);
-        } else {
-          console.warn(
-            "Airport not found for value:",
-            propValue,
-            "in data:",
-            airports
-          );
-          setInputValue("");
         }
       } else {
-        setInputValue("");
+        console.warn("Airport not found for value:", propValue);
+        setInputValue(`ID: ${parsedValue} (Not found)`); // Fallback display
       }
-      setInitialLoad(false); // Đánh dấu đã hoàn tất khởi tạo
+    } else if (!propValue && inputValue !== "") {
+      setInputValue("");
+    } else if (loading) {
+      setInputValue("Loading airports..."); // Hiển thị tạm khi loading
     }
-  }, [propValue, airports, loading, error, dispatch, initialLoad]);
+  }, [propValue, airports, loading, inputValue]); // Theo dõi để sync dynamic
 
   const handleInputChange = (e) => {
+    if (disabled) return;
     const query = e.target.value;
     setInputValue(query);
     setShowDropdown(true);
@@ -109,6 +102,7 @@ const CityAutocomplete = ({
   };
 
   const handleSelectAirport = (airport) => {
+    if (disabled) return;
     if (!airport || !airport.id) {
       console.warn("Invalid airport data:", airport);
       return;
@@ -129,7 +123,6 @@ const CityAutocomplete = ({
   //#endregion Implement Hook
 
   //#region Handle Function
-  if (loading) return <div>Loading airports...</div>;
   if (error) return <div>Error loading airports: {error}</div>;
 
   return (
@@ -139,12 +132,15 @@ const CityAutocomplete = ({
         type="text"
         value={inputValue}
         onChange={handleInputChange}
-        onFocus={() => setShowDropdown(true)}
+        onFocus={() => !disabled && setShowDropdown(true)}
         onBlur={handleBlur}
         placeholder={placeholder || "Search city..."}
-        className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className={`w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+          disabled ? "bg-gray-200 cursor-not-allowed" : ""
+        }`}
+        disabled={disabled || loading} // Disable thêm nếu loading
       />
-      {showDropdown && filteredAirports.length > 0 && (
+      {!disabled && !loading && showDropdown && filteredAirports.length > 0 && (
         <ul className="absolute z-50 w-full bg-white border border-gray-300 rounded mt-1 max-h-60 overflow-y-auto">
           {filteredAirports.map((airport) => (
             <li
@@ -157,11 +153,15 @@ const CityAutocomplete = ({
           ))}
         </ul>
       )}
-      {showDropdown && filteredAirports.length === 0 && inputValue && (
-        <p className="absolute z-50 w-full bg-white border border-gray-300 rounded mt-1 p-2 text-gray-500">
-          No airports found.
-        </p>
-      )}
+      {!disabled &&
+        !loading &&
+        showDropdown &&
+        filteredAirports.length === 0 &&
+        inputValue && (
+          <p className="absolute z-50 w-full bg-white border border-gray-300 rounded mt-1 p-2 text-gray-500">
+            No airports found.
+          </p>
+        )}
     </div>
   );
   //#endregion Handle Function

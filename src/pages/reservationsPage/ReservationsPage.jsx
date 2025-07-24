@@ -1,5 +1,6 @@
 // Libs
 import React, { useEffect, useState, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
@@ -26,6 +27,7 @@ import {
   getCancelRules,
 } from "../../thunk/reservationThunk";
 import { searchFlightSchedules } from "../../thunk/flightScheduleThunk";
+import { getListAirports } from "../../thunk/airportThunk";
 
 // Styles, images, icons
 
@@ -67,6 +69,8 @@ const ReservationsPage = () => {
         error: null,
       }
   );
+
+  const airports = useSelector((state) => state.airports?.data || []);
   //#endregion Selector
 
   //#region Declare State
@@ -79,15 +83,17 @@ const ReservationsPage = () => {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReservationId, setCancelReservationId] = useState(null);
   const [cancelData, setCancelData] = useState(null);
+  const [rescheduleLoading, setRescheduleLoading] = useState(false);
   //#endregion Declare State
 
   //#region Implement Hook
   useEffect(() => {
     dispatch(resetReservationDetailState());
+    dispatch(getListAirports());
     dispatch(getUserReservations())
       .unwrap()
       .then((payload) => {
-        console.log("Fetched reservations:", payload);
+        // console.log("Fetched reservations:", payload);
       })
       .catch((error) => {
         console.error("Fetch error:", error);
@@ -105,8 +111,8 @@ const ReservationsPage = () => {
     if (cancelSuccess) {
       console.log("Cancel success detected, closing modal and refreshing...");
       toast.success("Reservation cancelled successfully!");
-      dispatch(getUserReservations()); // Cập nhật danh sách đặt chỗ
-      dispatch(resetReservationDetailState()); // Reset trạng thái
+      dispatch(getUserReservations());
+      dispatch(resetReservationDetailState());
       setShowCancelModal(false);
       setCancelReservationId(null);
       setCancelData(null); // Reset local data
@@ -125,13 +131,29 @@ const ReservationsPage = () => {
       console.log("Cancel modal opened with rules:", cancelData);
     }
   }, [showCancelModal, cancelData]);
+
+  useEffect(() => {
+    console.log("showRescheduleModal changed to:", showRescheduleModal);
+    if (showRescheduleModal) {
+      console.log(
+        "Modal reschedule should be visible now with searchParams:",
+        searchParams
+      );
+      // Debug DOM
+      setTimeout(() => {
+        const modalElement = document.querySelector(".fixed.inset-0");
+        console.log("Modal element in DOM:", modalElement);
+        if (modalElement) {
+          console.log("Modal style:", modalElement.style);
+        }
+      }, 100); // Delay to check after render
+    }
+  }, [showRescheduleModal, searchParams]);
   //#endregion Implement Hook
 
   //#region Handle Function
   const handleAirlineClick = (reservationId) => {
-    console.log("handleAirlineClick called with reservationId:", reservationId);
     if (detailLoading) {
-      console.log("Detail loading, skipping...");
       return;
     }
     if (!reservationId) {
@@ -140,11 +162,9 @@ const ReservationsPage = () => {
       return;
     }
     setSelectedReservationId(reservationId);
-    console.log("SelectedReservationId set to:", reservationId);
     dispatch(getReservationDetail(reservationId))
       .unwrap()
       .then((response) => {
-        console.log("Reservation detail fetched successfully:", response);
         if (
           response &&
           ((Array.isArray(response.tickets) && response.tickets.length > 0) ||
@@ -195,23 +215,123 @@ const ReservationsPage = () => {
       });
   };
 
-  const handleReschedule = (reservationId) => {
+  const handleReschedule = async (reservationId) => {
+    if (rescheduleLoading) return;
+    setRescheduleLoading(true);
     setSelectedReservationId(reservationId);
-    if (reservationDetail && reservationDetail.Tickets.length > 0) {
-      const ticket = reservationDetail.Tickets[0];
+    try {
+      const response = await dispatch(
+        getReservationDetail(reservationId)
+      ).unwrap();
+      console.log("Fetched reservation detail for reschedule:", response);
+
+      if (
+        !response ||
+        (!response.Tickets && !response.tickets) ||
+        (response.Tickets || response.tickets).length === 0
+      ) {
+        toast.error("Không tìm thấy thông tin vé hợp lệ cho đặt chỗ này.");
+        return;
+      }
+
+      const ticket = (response.Tickets || response.tickets)[0];
+
+      let departureId =
+        ticket.fromId ||
+        ticket.FromId ||
+        ticket.departureAirport?.id ||
+        ticket.FromId; // Sửa: check lowercase before uppercase, add more fallback
+      let arrivalId =
+        ticket.toId || ticket.ToId || ticket.arrivalAirport?.id || ticket.ToId; // Sửa: check lowercase before uppercase
+
+      // Fallback name nếu ID null
+      if (
+        !departureId &&
+        (ticket.from || ticket.From || ticket.departureAirport?.name) &&
+        airports.length > 0
+      ) {
+        const fromName =
+          ticket.from || ticket.From || ticket.departureAirport?.name;
+        const foundAirport = airports.find(
+          (airport) =>
+            airport.name?.toLowerCase().includes(fromName.toLowerCase()) ||
+            airport.code?.toLowerCase().includes(fromName.toLowerCase())
+        );
+        if (foundAirport) {
+          departureId = foundAirport.id;
+          console.log(
+            "Found departure airport ID by partial name:",
+            departureId
+          );
+        } else {
+          console.warn(
+            "No airport found for departure name:",
+            fromName,
+            "Airports list:",
+            airports
+          );
+          toast.error("Không tìm thấy sân bay khởi hành từ vé.");
+          return;
+        }
+      }
+
+      if (
+        !arrivalId &&
+        (ticket.to || ticket.To || ticket.arrivalAirport?.name) &&
+        airports.length > 0
+      ) {
+        const toName = ticket.to || ticket.To || ticket.arrivalAirport?.name;
+        const foundAirport = airports.find(
+          (airport) =>
+            airport.name?.toLowerCase().includes(toName.toLowerCase()) ||
+            airport.code?.toLowerCase().includes(toName.toLowerCase())
+        );
+        if (foundAirport) {
+          arrivalId = foundAirport.id;
+        } else {
+          console.warn(
+            "No airport found for arrival name:",
+            toName,
+            "Airports list:",
+            airports
+          );
+          toast.error("Không tìm thấy sân bay đến từ vé.");
+          return;
+        }
+      }
+
+      if (!departureId || !arrivalId) {
+        console.log(
+          "Failed to get IDs - departureId:",
+          departureId,
+          "arrivalId:",
+          arrivalId
+        );
+        toast.error("Không thể lấy ID sân bay từ vé.");
+        return;
+      }
+
       setSearchParams({
-        DepartureAirportId: ticket.FromId || ticket.From,
-        ArrivalAirportId: ticket.ToId || ticket.To,
-        DepartureDate: moment(ticket.Departure, "DD/MM/YYYY HH:mm")
+        DepartureAirportId: departureId,
+        ArrivalAirportId: arrivalId,
+        DepartureDate: moment(
+          ticket.departure || ticket.Departure || ticket.departureTime,
+          "DD/MM/YYYY HH:mm"
+        )
           .add(1, "days")
           .format("YYYY-MM-DD"),
         TripType: "oneWay",
         Adults: 1,
         Children: 0,
-        FlightClass: ticket.FlightClass || "Economy",
+        FlightClass: ticket.flightClass || ticket.FlightClass || "Economy",
       });
+      setShowRescheduleModal(true);
+    } catch (error) {
+      console.error("Error fetching detail for reschedule:", error);
+      toast.error(`Không thể lấy chi tiết đặt chỗ: ${error.message || error}`);
+    } finally {
+      setRescheduleLoading(false);
     }
-    setShowRescheduleModal(true);
   };
 
   const handleSearchFlights = async (params) => {
@@ -426,144 +546,156 @@ const ReservationsPage = () => {
         reservationId={isModalOpen ? selectedReservationId : null}
         onClose={handleCloseModal}
       />
-      {showRescheduleModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg max-w-[64rem] w-full mx-4">
-            <h3 className="text-xl font-semibold mb-4 text-gray-800 border-b border-gray-200 pb-2">
-              Reschedule Your Flight
-            </h3>
-            <FlightSearchForm
-              defaultData={searchParams}
-              onSearch={handleSearchFlights}
-              preventNavigation={true}
-              className="mb-4"
-            />
-            <div className="space-y-2 max-h-40 overflow-y-auto">
-              {flightSearchLoading && (
-                <p className="text-center text-gray-600 animate-pulse">
-                  Loading flights...
-                </p>
-              )}
-              {flightSearchError && (
-                <p className="text-red-600 text-center">
-                  Error: {flightSearchError}
-                </p>
-              )}
-              {!flightSearchLoading &&
-                !flightSearchError &&
-                availableFlights?.length > 0 &&
-                availableFlights.map((flight) => (
-                  <div
-                    key={flight.id}
-                    className="p-3 border border-gray-300 rounded-lg hover:bg-gray-100 cursor-pointer"
-                    onClick={() => setSelectedNewFlightId(flight.id)}
-                    style={{
-                      backgroundColor:
-                        selectedNewFlightId === flight.id
-                          ? "#e0f7fa"
-                          : "transparent",
-                    }}
-                  >
-                    <p>
-                      {flight.airline?.name} -{" "}
-                      {moment(flight.departureTime).format("DD/MM/YYYY HH:mm")}{" "}
-                      to {moment(flight.arrivalTime).format("DD/MM/YYYY HH:mm")}{" "}
-                      - ${flight.price}
-                    </p>
-                  </div>
-                ))}
-              {availableFlights?.length === 0 && !flightSearchLoading && (
-                <p className="text-center text-gray-600">
-                  No flights available.
-                </p>
-              )}
-            </div>
-            <div className="flex justify-end gap-4 mt-4">
-              <Button onClick={handleCloseRescheduleModal}>Cancel</Button>
-              <Button
-                primary
-                onClick={handleRescheduleConfirm}
-                disabled={rescheduling || !selectedNewFlightId}
-              >
-                {rescheduling ? "Rescheduling..." : "Confirm Reschedule"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-      {showCancelModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center z-50">
-          <div className="bg-white p-6 rounded-md shadow-md max-w-sm w-full">
-            <h2 className="text-lg font-semibold mb-4">Confirm Cancellation</h2>
-            {cancelData ? (
-              <div className="space-y-4">
-                <p>
-                  <strong>Reservation ID:</strong>{" "}
-                  {cancelData.reservationId || "N/A"}
-                </p>
-                <p>
-                  <strong>Confirmation Number:</strong>{" "}
-                  {cancelData.confirmationNumber || "N/A"}
-                </p>
-                <p>
-                  <strong>Status:</strong> {cancelData.status || "N/A"}
-                </p>
-                <p>
-                  <strong>Cancellation Rules:</strong>{" "}
-                  {cancelData.cancellationRules || "No rules available"}
-                </p>
-                <p>
-                  <strong>Refund Percentage:</strong>
-                  {cancelData.refundPercentage !== undefined
-                    ? `${cancelData.refundPercentage.toFixed(1)}%`
-                    : "N/A"}
-                </p>
-                <p>
-                  <strong>Refund Amount:</strong> $
-                  {cancelData.refundAmount !== undefined
-                    ? cancelData.refundAmount.toFixed(2)
-                    : "N/A"}
-                </p>
-                <div>
-                  <strong>Tickets:</strong>
-                  <ul className="list-disc pl-5">
-                    {cancelData.tickets && cancelData.tickets.length > 0 ? (
-                      cancelData.tickets.map((ticket, index) => (
-                        <li key={index}>
-                          {ticket.airline || "N/A"} from {ticket.from || "N/A"}{" "}
-                          to {ticket.to || "N/A"}({ticket.departure || "N/A"} -{" "}
-                          {ticket.arrival || "N/A"})
-                        </li>
-                      ))
-                    ) : (
-                      <li>No tickets available</li>
-                    )}
-                  </ul>
-                </div>
+      {showRescheduleModal &&
+        createPortal(
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 visible">
+            <div className="bg-white p-6 rounded-lg shadow-lg max-w-[64rem] w-full mx-4 bg-red-100">
+              <h3 className="text-xl font-semibold mb-4 text-gray-800 border-b border-gray-200 pb-2">
+                Reschedule Your Flight
+              </h3>
+              <FlightSearchForm
+                defaultData={searchParams}
+                onSearch={handleSearchFlights}
+                disableDepartureCity={true}
+                disableDestinationCity={true}
+                preventNavigation={true}
+                className="mb-4"
+              />
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {flightSearchLoading && (
+                  <p className="text-center text-gray-600 animate-pulse">
+                    Loading flights...
+                  </p>
+                )}
+                {flightSearchError && (
+                  <p className="text-red-600 text-center">
+                    Error: {flightSearchError}
+                  </p>
+                )}
+                {!flightSearchLoading &&
+                  !flightSearchError &&
+                  availableFlights?.length > 0 &&
+                  availableFlights.map((flight) => (
+                    <div
+                      key={flight.id}
+                      className="p-3 border border-gray-300 rounded-lg hover:bg-gray-100 cursor-pointer"
+                      onClick={() => setSelectedNewFlightId(flight.id)}
+                      style={{
+                        backgroundColor:
+                          selectedNewFlightId === flight.id
+                            ? "#e0f7fa"
+                            : "transparent",
+                      }}
+                    >
+                      <p>
+                        {flight.airline?.name} -{" "}
+                        {moment(flight.departureTime).format(
+                          "DD/MM/YYYY HH:mm"
+                        )}{" "}
+                        to{" "}
+                        {moment(flight.arrivalTime).format("DD/MM/YYYY HH:mm")}{" "}
+                        - ${flight.price}
+                      </p>
+                    </div>
+                  ))}
+                {availableFlights?.length === 0 && !flightSearchLoading && (
+                  <p className="text-center text-gray-600">
+                    No flights available.
+                  </p>
+                )}
               </div>
-            ) : (
-              <p className="text-gray-600 mb-6">
-                No cancellation data available.
-              </p>
-            )}
-            <div className="flex justify-end gap-4 mt-4">
-              <button
-                className="bg-gray-300 text-gray-800 py-1 px-4 rounded"
-                onClick={handleCloseCancelModal}
-              >
-                Cancel
-              </button>
-              <button
-                className="bg-pink-600 text-white py-1 px-4 rounded"
-                onClick={handleConfirmCancel}
-                disabled={detailLoading || !cancelData}
-              >
-                Confirm Cancellation
-              </button>
+              <div className="flex justify-end gap-4 mt-4">
+                <Button onClick={handleCloseRescheduleModal}>Cancel</Button>
+                <Button
+                  primary
+                  onClick={handleRescheduleConfirm}
+                  disabled={rescheduling || !selectedNewFlightId}
+                >
+                  {rescheduling ? "Rescheduling..." : "Confirm Reschedule"}
+                </Button>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
+      {showCancelModal &&
+        createPortal(
+          <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center z-50">
+            <div className="bg-white p-6 rounded-md shadow-md max-w-sm w-full">
+              <h2 className="text-lg font-semibold mb-4">
+                Confirm Cancellation
+              </h2>
+              {cancelData ? (
+                <div className="space-y-4">
+                  <p>
+                    <strong>Reservation ID:</strong>{" "}
+                    {cancelData.reservationId || "N/A"}
+                  </p>
+                  <p>
+                    <strong>Confirmation Number:</strong>{" "}
+                    {cancelData.confirmationNumber || "N/A"}
+                  </p>
+                  <p>
+                    <strong>Status:</strong> {cancelData.status || "N/A"}
+                  </p>
+                  <p>
+                    <strong>Cancellation Rules:</strong>{" "}
+                    {cancelData.cancellationRules || "No rules available"}
+                  </p>
+                  <p>
+                    <strong>Refund Percentage:</strong>
+                    {cancelData.refundPercentage !== undefined
+                      ? `${cancelData.refundPercentage.toFixed(1)}%`
+                      : "N/A"}
+                  </p>
+                  <p>
+                    <strong>Refund Amount:</strong> $
+                    {cancelData.refundAmount !== undefined
+                      ? cancelData.refundAmount.toFixed(2)
+                      : "N/A"}
+                  </p>
+                  <div>
+                    <strong>Tickets:</strong>
+                    <ul className="list-disc pl-5">
+                      {cancelData.tickets && cancelData.tickets.length > 0 ? (
+                        cancelData.tickets.map((ticket, index) => (
+                          <li key={index}>
+                            {ticket.airline || "N/A"} from{" "}
+                            {ticket.from || "N/A"} to {ticket.to || "N/A"}(
+                            {ticket.departure || "N/A"} -{" "}
+                            {ticket.arrival || "N/A"})
+                          </li>
+                        ))
+                      ) : (
+                        <li>No tickets available</li>
+                      )}
+                    </ul>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-gray-600 mb-6">
+                  No cancellation data available.
+                </p>
+              )}
+              <div className="flex justify-end gap-4 mt-4">
+                <button
+                  className="bg-gray-300 text-gray-800 py-1 px-4 rounded"
+                  onClick={handleCloseCancelModal}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="bg-pink-600 text-white py-1 px-4 rounded"
+                  onClick={handleConfirmCancel}
+                  disabled={detailLoading || !cancelData}
+                >
+                  Confirm Cancellation
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 };
